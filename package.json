@@ -1,0 +1,39 @@
+{
+  "name": "postmortem",
+  "private": true,
+  "description": "Free chess game review for chess.com and Lichess games. Stockfish runs in the browser.",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "prepare-assets": "node scripts/copy-engine.mjs",
+    "predev": "npm run prepare-assets",
+    "prebuild": "npm run prepare-assets",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "build:preview": "node scripts/make-preview.mjs",
+    "build:openings": "node scripts/build-openings.mjs",
+    "test": "vitest run",
+    "analyze": "tsx scripts/analyze-cli.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/hanken-grotesk": "^5.3.0",
+    "@fontsource-variable/literata": "^5.3.0",
+    "chess.js": "^1.4.0",
+    "idb": "^8.0.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "stockfish": "^19.0.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  }
+}

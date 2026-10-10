@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Postmortem: free chess game review</title>
+    <meta name="description" content="Free, unlimited review of your chess.com and Lichess games. Stockfish marks every move in your browser and shows the patterns across your games." />
+    <meta name="theme-color" content="#16202e" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <style>
+      html { background: #f1f3f5; }
+      @media (prefers-color-scheme: dark) { html { background: #0f151d; } }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Postmortem reviews chess games in your browser and needs JavaScript to run.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

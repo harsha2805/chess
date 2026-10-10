@@ -1,0 +1,4 @@
+# The settings file is never served, even if PHP is switched off.
+<FilesMatch "^report-config(\.example)?\.php$">
+  Require all denied
+</FilesMatch>

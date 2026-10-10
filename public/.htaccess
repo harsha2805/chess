@@ -1,0 +1,28 @@
+# Postmortem on Apache or LiteSpeed shared hosting (DirectAdmin, cPanel).
+# The site is static files plus one small PHP file for bug reports.
+
+AddType application/wasm .wasm
+AddDefaultCharset utf-8
+Options -Indexes
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/wasm image/svg+xml
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # Files in /assets have a hash in their name, so they can be cached for good.
+  <FilesMatch "\.(js|css|woff2|svg)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  # The engine keeps its file name between releases of the same version.
+  <FilesMatch "^stockfish.*\.(js|wasm)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  # The page itself is always checked, so an update shows at once.
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

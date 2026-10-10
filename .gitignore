@@ -1,0 +1,8 @@
+node_modules/
+dist/
+public/engine/
+# Server-side bug report settings (holds the recipient address)
+public/api/report-config.php
+*.zip
+.DS_Store
+dist-preview/
