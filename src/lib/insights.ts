@@ -169,6 +169,14 @@ const CLOCK_BUCKETS = [
  */
 const stillOpen = (winBefore: number) => winBefore > 10 && winBefore < 90;
 
+/**
+ * True once the game is lost for the mover. From there the engine's score flips between
+ * "−8" and "mate in 5" after almost any move, so one lost game could add seven "allowed a
+ * forced mate" errors. Error patterns are counted only before that point. A won position is
+ * not excluded: throwing a win away is exactly what the patterns should catch.
+ */
+const alreadyLost = (winBefore: number) => winBefore <= 10;
+
 const MOTIF_KINDS = Object.keys(MOTIF_LABEL) as Tag['kind'][];
 const HUNG_PAWN_LABEL = 'Left a pawn to be taken';
 const PHASES: Phase[] = ['opening', 'middlegame', 'endgame'];
@@ -234,7 +242,7 @@ export function buildInsights(allGames: GameRecord[], player: string): Insights 
       const repeat = hungKey !== '' && hungKey === stillHanging;
       stillHanging = hungKey;
 
-      if (ERROR_MARKS.includes(m.mark)) {
+      if (ERROR_MARKS.includes(m.mark) && !alreadyLost(m.winBefore)) {
         for (const tag of m.tags) {
           if (!MOTIF_KINDS.includes(tag.kind)) continue;
           if (tag.kind === 'hung' && repeat) continue;

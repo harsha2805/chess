@@ -207,7 +207,7 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
           <h2>Where the errors come from</h2>
           <p className="hint">
             The patterns behind your errors that can be named, counted once each time they happen. Inaccuracies count as well as mistakes and
-            blunders. Open one to see the latest positions.
+            blunders; moves made once the game was already lost do not. Open one to see the latest positions.
           </p>
           {data.motifs.length === 0 ? <p className="muted">No named pattern in these games.</p> : <Motifs data={data} top={topMotif} />}
         </section>

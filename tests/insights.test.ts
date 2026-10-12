@@ -93,6 +93,21 @@ describe('the errors behind the numbers', () => {
     expect(pawns?.count).toBe(1);
     expect(pawns?.label).toBe('Left a pawn to be taken');
   });
+
+  it('stops counting once the game is lost, but not once it is won', () => {
+    const mate: Tag = { kind: 'allowed_mate', in: 3, by: 'Qh7+' };
+    const insights = buildInsights(
+      [
+        reviewed([
+          { ...move(1, 'blunder', [mate]), winBefore: 40 },
+          { ...move(3, 'inaccuracy', [mate]), winBefore: 4 }, // already lost: the score just turned into a mate
+          { ...move(5, 'blunder', [mate]), winBefore: 95 }, // threw a won game away
+        ]),
+      ],
+      'me',
+    );
+    expect(insights.motifs.find((m) => m.kind === 'allowed_mate')?.count).toBe(2);
+  });
 });
 
 describe('accuracy by phase', () => {
