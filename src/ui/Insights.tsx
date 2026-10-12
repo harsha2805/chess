@@ -15,7 +15,7 @@ export function Insights() {
   const ready = useStore((s) => s.ready);
   const games = useStore((s) => s.games);
   const stored = useStore((s) => s.settings.player);
-  const working = useStore((s) => !!s.active || s.queue.length > 0);
+  const working = useStore((s) => s.active.length > 0 || s.queue.length > 0);
 
   const names = useMemo(() => playerNames(games), [games]);
   const player = resolvePlayer(games, stored) || names[0]?.name || '';
@@ -82,7 +82,10 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
   // Only point at a phase when it is clearly behind the others.
   const weakPhase = worstPhase && bestPhase && bestPhase.accuracy - worstPhase.accuracy >= 4 ? worstPhase.phase : null;
   const clockRows = data.byClock.filter((b) => b.moves > 0);
-  const worstClock = clockRows.filter((b) => b.moves >= 10).reduce<(typeof clockRows)[number] | null>((a, b) => (!a || b.rate > a.rate ? b : a), null);
+  // Only point at one part of the clock when there is another to compare it with.
+  const comparableClock = clockRows.filter((b) => b.moves >= 10);
+  const worstClock =
+    comparableClock.length >= 2 ? comparableClock.reduce<(typeof clockRows)[number] | null>((a, b) => (!a || b.rate > a.rate ? b : a), null) : null;
   const maxRate = Math.max(5, ...clockRows.map((b) => b.rate));
   const topMotif = data.motifs[0]?.count ?? 0;
 
@@ -133,8 +136,8 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
           <section className="panel wide">
             <h2>Every game, one line</h2>
             <p className="hint">
-              Oldest at the top. Each peak is one of your moves that gave away winning chances: the taller, the more it cost. Select a line to
-              open that game.
+              All {data.reviewed} reviewed games, newest at the top. Each peak is one of your moves that gave away winning chances: the taller,
+              the more it cost. Select a line to open that game.
             </p>
             <Pulse games={games} player={player} />
           </section>
@@ -150,23 +153,30 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
 
         <section className="panel">
           <h2>Accuracy by phase</h2>
-          <p className="hint">Average accuracy of your moves in each part of the game. Book moves are left out.</p>
+          <p className="hint">
+            Average accuracy of your moves in each part of the game. Book moves are left out. The light bar is your weakest phase, when one
+            is clearly behind the others.
+          </p>
           <Bars
             max={100}
             rows={data.byPhase.map((p) => ({
               key: p.phase,
               label: PHASE_LABEL[p.phase],
               value: p.moves ? p.accuracy : null,
-              text: p.moves ? `${p.accuracy.toFixed(1)}%` : 'No moves',
+              text: p.moves ? `${p.accuracy.toFixed(1)}%` : '–',
               detail: `${p.moves} moves`,
               emphasis: weakPhase === p.phase,
+              flag: weakPhase === p.phase ? 'Weakest phase' : undefined,
             }))}
           />
         </section>
 
         <section className="panel">
           <h2>Errors and the clock</h2>
-          <p className="hint">Mistakes, blunders and missed chances per 100 moves, by how much of your starting time was left.</p>
+          <p className="hint">
+            Mistakes, blunders and missed chances per 100 moves, by how much of your starting time was left. The light bar is where you err
+            most often.
+          </p>
           {clockRows.length === 0 ? (
             <p className="muted">These games have no clock times recorded.</p>
           ) : (
@@ -176,9 +186,10 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
                 key: b.key,
                 label: b.label,
                 value: b.moves ? b.rate : null,
-                text: b.moves ? b.rate.toFixed(1) : 'No moves',
+                text: b.moves ? b.rate.toFixed(1) : '–',
                 detail: `${b.errors} in ${b.moves} moves`,
                 emphasis: worstClock?.key === b.key && b.rate > 0,
+                flag: worstClock?.key === b.key && b.rate > 0 ? 'Most errors' : undefined,
               }))}
             />
           )}
@@ -186,7 +197,10 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
 
         <section className="panel">
           <h2>Where the errors come from</h2>
-          <p className="hint">The patterns behind your errors that can be named. Open one to see the positions.</p>
+          <p className="hint">
+            The patterns behind your errors that can be named, counted once each time they happen. Inaccuracies count as well as mistakes and
+            blunders. Open one to see the latest positions.
+          </p>
           {data.motifs.length === 0 ? <p className="muted">No named pattern in these games.</p> : <Motifs data={data} top={topMotif} />}
         </section>
 
@@ -232,7 +246,7 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
                     <tr key={`${o.color}${o.name}`}>
                       <td>
                         <span className={`side-chip ${o.color}`} role="img" aria-label={o.color === 'w' ? 'As White' : 'As Black'} />
-                        {o.name}
+                        <a href={href('dictionary', 'family', o.name)}>{o.name}</a>
                       </td>
                       <td>{o.games}</td>
                       <td>
@@ -258,6 +272,8 @@ interface BarRow {
   text: string;
   detail?: string;
   emphasis?: boolean;
+  /** Says why the row is highlighted. */
+  flag?: string;
 }
 
 /** Horizontal bars from a shared baseline, each labelled with its value. */
@@ -271,7 +287,12 @@ function Bars({ rows, max }: { rows: BarRow[]; max: number }) {
             {r.value !== null && <i className={r.emphasis ? 'emph' : undefined} style={{ width: `${Math.max(0.5, Math.min(100, (r.value / max) * 100))}%` }} />}
           </span>
           <span className="bar-value num">{r.text}</span>
-          {r.detail && <span className="bar-detail num">{r.detail}</span>}
+          {(r.detail || r.flag) && (
+            <span className="bar-detail num">
+              {r.detail}
+              {r.flag && <b className="bar-flag">{r.flag}</b>}
+            </span>
+          )}
         </div>
       ))}
     </div>
@@ -283,8 +304,8 @@ function Motifs({ data, top }: { data: InsightsData; top: number }) {
   return (
     <ul className="motifs">
       {data.motifs.map((m) => (
-        <li key={m.kind}>
-          <button className="motif-btn" type="button" aria-expanded={open === m.kind} onClick={() => setOpen(open === m.kind ? null : m.kind)}>
+        <li key={m.key}>
+          <button className="motif-btn" type="button" aria-expanded={open === m.key} onClick={() => setOpen(open === m.key ? null : m.key)}>
             <span>{m.label}</span>
             <span className="count">{m.count}</span>
             <IconChevron />
@@ -292,7 +313,7 @@ function Motifs({ data, top }: { data: InsightsData; top: number }) {
               <i style={{ width: `${(m.count / top) * 100}%` }} />
             </span>
           </button>
-          {open === m.kind && (
+          {open === m.key && (
             <ul className="examples">
               {m.examples.map((ex) => (
                 <li key={`${ex.gameId}${ex.ply}`}>
@@ -364,10 +385,7 @@ function TrendChart({ points, average }: { points: TrendPoint[]; average: number
             </text>
           </g>
         ))}
-        <line x1={m.l} x2={width - m.r} y1={y(average)} y2={y(average)} stroke="var(--ink-3)" strokeWidth="1" />
-        <text x={width - m.r} y={y(average) - 5} textAnchor="end" className="cat">
-          average {average.toFixed(1)}
-        </text>
+        <line x1={m.l} x2={width - m.r} y1={y(average)} y2={y(average)} stroke="var(--ink-3)" strokeWidth="1" strokeDasharray="4 4" />
         {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={m.t} y2={H - m.b} stroke="var(--seam-strong)" strokeWidth="1" />}
         <path d={path} fill="none" stroke="var(--route-under)" strokeWidth="9" strokeLinejoin="round" strokeLinecap="round" />
         <path d={path} fill="none" stroke="var(--route)" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
@@ -387,6 +405,12 @@ function TrendChart({ points, average }: { points: TrendPoint[]; average: number
         </div>
       )}
       <div className="legend" aria-hidden="true">
+        <span>
+          <svg width="18" height="12" viewBox="0 0 18 12">
+            <line x1="0" x2="18" y1="6" y2="6" stroke="var(--ink-3)" strokeWidth="1.5" strokeDasharray="4 3" />
+          </svg>
+          Average {average.toFixed(1)}%
+        </span>
         <span>
           <svg width="12" height="12" viewBox="0 0 12 12">
             <circle cx="6" cy="6" r="4.5" fill="var(--ink)" />
@@ -410,15 +434,17 @@ function TrendChart({ points, average }: { points: TrendPoint[]; average: number
   );
 }
 
-/** Reviewed games of this player, oldest first, as one pulse line each. Peaks are the player's costly moves. */
+/** How many game lines show before the chart scrolls: fewer on a phone, where each line is taller. */
+const PULSE_ROWS_IN_VIEW = { wide: 14, narrow: 8 };
+
+/** Reviewed games of this player, newest first, as one pulse line each. Peaks are the player's costly moves. */
 function Pulse({ games, player }: { games: GameRecord[]; player: string }) {
   const [ref, width] = useWidth<HTMLDivElement>(640);
   const rows = useMemo(
     () =>
       games
         .filter((g) => isReviewed(g) && perspective(g, player))
-        .sort((a, b) => a.playedAt - b.playedAt)
-        .slice(-16)
+        .sort((a, b) => b.playedAt - a.playedAt)
         .map((g) => {
           const side = perspective(g, player)!;
           const opponent = side === 'w' ? g.black.name : g.white.name;
@@ -437,15 +463,36 @@ function Pulse({ games, player }: { games: GameRecord[]; player: string }) {
   const gap = narrow ? 44 : 28;
   const cap = narrow ? 24 : 52;
   const top = narrow ? 44 : 48;
-  const H = top + (rows.length - 1) * gap + 34;
+  const H = top + (rows.length - 1) * gap + 14;
   const span = Math.min(80, Math.max(30, ...rows.map((r) => r.length)));
   const x = (move: number) => left + ((move - 0.5) / span) * (width - left - right);
   const sigma = Math.max(3, ((width - left - right) / span) * 0.7);
   const ticks = [10, 20, 30, 40, 50, 60, 70, 80].filter((t) => t < span);
 
+  // Long lists scroll inside the panel; the move numbers stay above them.
+  const inView = narrow ? PULSE_ROWS_IN_VIEW.narrow : PULSE_ROWS_IN_VIEW.wide;
+  const scrolls = rows.length > inView;
   return (
-    <div className="chart pulse" ref={ref}>
-      <svg height={H} viewBox={`0 0 ${width} ${H}`} aria-label={`${rows.length} reviewed games, one line each, oldest at the top.`}>
+    <div className="chart pulse">
+      <svg className="pulse-axis-row" height="18" viewBox={`0 0 ${width} 18`} aria-hidden="true">
+        <text className="pulse-axis" x={narrow ? 0 : left - 10} y="13" textAnchor={narrow ? 'start' : 'end'}>
+          move
+        </text>
+        {ticks.map((t) => (
+          <text key={t} className="pulse-axis" x={x(t)} y="13" textAnchor="middle">
+            {t}
+          </text>
+        ))}
+      </svg>
+      <div
+        className={scrolls ? 'pulse-scroll is-scrolling' : 'pulse-scroll'}
+        ref={ref}
+        style={scrolls ? { maxHeight: top + inView * gap } : undefined}
+        tabIndex={scrolls ? 0 : undefined}
+        role={scrolls ? 'region' : undefined}
+        aria-label={scrolls ? `${rows.length} games, scroll for more` : undefined}
+      >
+      <svg height={H} viewBox={`0 0 ${width} ${H}`} aria-label={`${rows.length} reviewed games, one line each, newest at the top.`}>
         {rows.map((r, i) => {
           const base = top + i * gap;
           const end = Math.min(width - right, x(Math.min(r.length, span) + 0.5));
@@ -477,15 +524,9 @@ function Pulse({ games, player }: { games: GameRecord[]; player: string }) {
             </a>
           );
         })}
-        {ticks.map((t) => (
-          <text key={t} className="pulse-axis" x={x(t)} y={H - 4} textAnchor="middle">
-            {t}
-          </text>
-        ))}
-        <text className="pulse-axis" x="0" y={H - 4}>
-          move
-        </text>
       </svg>
+      </div>
+      {scrolls && <p className="pulse-more">Scroll the list to see all {rows.length} games.</p>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { APP_NAME, REPO_URL } from './config';
 import { About } from './ui/About';
+import { Dictionary } from './ui/Dictionary';
 import { Home } from './ui/Home';
 import { Insights } from './ui/Insights';
 import { Report } from './ui/Report';
@@ -22,6 +23,9 @@ export function App() {
   } else if (section === 'insights') {
     page = <Insights />;
     title = `Insights | ${APP_NAME}`;
+  } else if (section === 'dictionary') {
+    page = <Dictionary kind={a} id={b} />;
+    title = `Dictionary | ${APP_NAME}`;
   } else if (section === 'about') {
     page = <About />;
     title = `How it works | ${APP_NAME}`;
@@ -58,6 +62,10 @@ export function App() {
             <a href={href('insights')} aria-current={section === 'insights' ? 'page' : undefined}>
               <i aria-hidden="true" />
               Insights
+            </a>
+            <a href={href('dictionary')} aria-current={section === 'dictionary' ? 'page' : undefined}>
+              <i aria-hidden="true" />
+              Dictionary
             </a>
           </nav>
           <button

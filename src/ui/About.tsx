@@ -1,22 +1,9 @@
 import { APP_NAME, APP_VERSION, REPO_URL } from '../config';
-import { MARK_LABEL } from '../lib/explain';
-import type { Mark } from '../lib/types';
+import { MARK_LABEL, MARK_ORDER } from '../lib/explain';
+import { MARK_MEANING } from '../lib/dictionary';
+import { DEPTHS, type DepthPreset } from '../lib/store';
 import { MarkTag } from './MarkTag';
 import { href } from './router';
-
-const RULES: [Mark, string][] = [
-  ['brilliant', 'A sound sacrifice: the move offers a piece, is among the best available, and the game was not already won without it.'],
-  ['great', 'The only good move. It is the engine’s choice, and every other move gives up at least 12 points of winning chances.'],
-  ['best', 'The engine’s first choice.'],
-  ['excellent', 'Gives up 2 points of winning chances or fewer.'],
-  ['good', 'Gives up between 2 and 5 points.'],
-  ['book', 'A known opening move, while the game follows theory from the first move.'],
-  ['forced', 'The only legal move.'],
-  ['inaccuracy', 'Gives up between 5 and 10 points.'],
-  ['miss', 'Gives up 10 points or more, but only by failing to punish an error the opponent just made.'],
-  ['mistake', 'Gives up between 10 and 20 points.'],
-  ['blunder', 'Gives up more than 20 points.'],
-];
 
 export function About() {
   return (
@@ -35,7 +22,7 @@ export function About() {
       </p>
       <table className="table">
         <tbody>
-          {RULES.map(([mark, rule]) => (
+          {MARK_ORDER.map((mark) => (
             <tr key={mark}>
               <td>
                 <span>
@@ -43,7 +30,7 @@ export function About() {
                   {MARK_LABEL[mark]}
                 </span>
               </td>
-              <td>{rule}</td>
+              <td>{MARK_MEANING[mark]}</td>
             </tr>
           ))}
         </tbody>
@@ -51,6 +38,35 @@ export function About() {
       <p style={{ marginTop: 14 }}>
         Accuracy is the average quality of a side’s moves, from 0 to 100. Moves played while the position was swinging count for more, and
         a few very bad moves cost more than many small slips.
+      </p>
+
+      <h2>Quick, Standard and Deep</h2>
+      <p>
+        The setting next to your games decides how far ahead Stockfish looks at each position. Looking further finds more, and takes longer.
+        All three use the same rules to judge moves, so a blunder is a blunder at every setting; what changes is how sure the engine is.
+      </p>
+      <table className="table">
+        <tbody>
+          {(Object.keys(DEPTHS) as DepthPreset[]).map((d) => (
+            <tr key={d}>
+              <td>
+                <b>{DEPTHS[d].label}</b>
+              </td>
+              <td>
+                {DEPTHS[d].hint} {DEPTHS[d].summary}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p style={{ marginTop: 14 }}>
+        A saved review keeps the setting it was made with. If you choose a deeper setting later, the games list and each game offer to
+        review the lighter ones again. The new review replaces the old one when it finishes.
+      </p>
+      <p>
+        On a computer with processor cores to spare, up to three games are reviewed at once, each by its own copy of Stockfish, so a batch
+        finishes sooner. Each game is still judged exactly as it would be alone. Phones and tablets review one game at a time, to save the
+        battery.
       </p>
 
       <h2>What it cannot tell you</h2>

@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { SAMPLE_PGN } from '../config';
 import { parsePgn } from '../lib/pgn';
-import { DEPTHS, cancelReviews, isReviewed, removeGames, requestReview, resetEngine, updateSettings, useStore, type DepthPreset } from '../lib/store';
-import type { GameRecord } from '../lib/types';
+import { DEPTHS, canDeepen, cancelReviews, isReviewed, removeGames, requestReview, resetEngine, reviewSetting, updateSettings, useStore, type DepthPreset, type GameSort, type Progress } from '../lib/store';
+import type { GameRecord, TimeClass } from '../lib/types';
 import { Board } from './Board';
 import { ImportForm, openSample } from './ImportForm';
-import { gameDateLabel, perspective, resultMark, timeLabel } from './format';
+import { fold, gameDateLabel, perspective, resultMark, timeLabel } from './format';
 import { outcomeFor, resolvePlayer } from '../lib/insights';
 import { href } from './router';
 
@@ -55,6 +55,58 @@ function Welcome() {
   );
 }
 
+const SORTS: Record<GameSort, string> = {
+  newest: 'Newest first',
+  oldest: 'Oldest first',
+  added: 'Recently added',
+  best: 'Best accuracy',
+  worst: 'Worst accuracy',
+};
+
+const TIME_CLASSES: TimeClass[] = ['bullet', 'blitz', 'rapid', 'classical', 'daily', 'unknown'];
+const TIME_CLASS_LABEL: Record<TimeClass, string> = {
+  bullet: 'Bullet',
+  blitz: 'Blitz',
+  rapid: 'Rapid',
+  classical: 'Classical',
+  daily: 'Daily',
+  unknown: 'No time control',
+};
+
+/** The accuracy a game is sorted by: the player's own, or both sides' average when the side is unknown. */
+function sortAccuracy(game: GameRecord, player: string): number | null {
+  if (!isReviewed(game)) return null;
+  const side = perspective(game, player);
+  const acc = game.review!.accuracy;
+  return side ? acc[side] : (acc.w + acc.b) / 2;
+}
+
+/** Everything a search can match in one game: players, opening, time control, date and outcome. */
+function searchText(game: GameRecord, player: string): string {
+  const side = perspective(game, player);
+  const outcome = side ? outcomeFor(game, side) : null;
+  return fold(
+    [
+      game.white.name,
+      game.black.name,
+      game.review?.opening?.name,
+      game.review?.opening?.eco,
+      timeLabel(game),
+      TIME_CLASS_LABEL[game.timeClass],
+      gameDateLabel(game),
+      outcome === 'win' ? 'won win' : outcome === 'loss' ? 'lost loss' : outcome === 'draw' ? 'drew draw' : '',
+      side === 'w' ? 'white' : side === 'b' ? 'black' : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
+  );
+}
+
+function progressOf(active: Progress[], id: string): number | null {
+  const a = active.find((p) => p.id === id);
+  return a ? a.done / a.total : null;
+}
+
 function Library({ games }: { games: GameRecord[] }) {
   const queue = useStore((s) => s.queue);
   const active = useStore((s) => s.active);
@@ -62,15 +114,46 @@ function Library({ games }: { games: GameRecord[] }) {
   const engineError = useStore((s) => s.engineError);
   const failures = useStore((s) => s.failures);
   const settings = useStore((s) => s.settings);
+  const slow = useStore((s) => s.slowEngine);
   const [confirmClear, setConfirmClear] = useState(false);
   const [adding, setAdding] = useState(false);
   const player = useMemo(() => resolvePlayer(games, settings.player), [games, settings.player]);
+  const [query, setQuery] = useState('');
+  const [timeClass, setTimeClass] = useState<TimeClass | 'all'>('all');
+  const classes = useMemo(() => TIME_CLASSES.filter((c) => games.some((g) => g.timeClass === c)), [games]);
+  const visible = useMemo(() => {
+    const words = fold(query).split(/\s+/).filter(Boolean);
+    const list = games.filter(
+      (g) => (timeClass === 'all' || g.timeClass === timeClass) && (words.length === 0 || words.every((w) => searchText(g, player).includes(w))),
+    );
+    const sort = settings.sort;
+    if (sort === 'newest') return list; // The store keeps games newest first.
+    if (sort === 'oldest') return [...list].reverse();
+    if (sort === 'added') return [...list].sort((a, b) => b.addedAt - a.addedAt);
+    // Unreviewed games go last whichever way accuracy is sorted.
+    return [...list].sort((a, b) => {
+      const x = sortAccuracy(a, player);
+      const y = sortAccuracy(b, player);
+      if (x === null || y === null) return x === null ? (y === null ? 0 : 1) : -1;
+      return sort === 'best' ? y - x : x - y;
+    });
+  }, [games, query, timeClass, settings.sort, player]);
+  const filtered = visible.length !== games.length;
+  const clearFilters = () => {
+    setQuery('');
+    setTimeClass('all');
+  };
 
   const pending = games.filter((g) => !isReviewed(g));
   const reviewedCount = games.length - pending.length;
-  const working = !!active || queue.length > 0;
-  const activeGame = active ? games.find((g) => g.id === active.id) : undefined;
-  const remaining = queue.length + (active ? 1 : 0);
+  const working = active.length > 0 || queue.length > 0;
+  const activeGame = active.length === 1 ? games.find((g) => g.id === active[0].id) : undefined;
+  const remaining = queue.length + active.length;
+  // With several engines at work, the bar shows how far along they are together.
+  const activeShare = active.length ? active.reduce((sum, a) => sum + a.done / a.total, 0) / active.length : 0;
+  const preset = DEPTHS[settings.depth];
+  // The backup engine cannot look further than it already did, so it offers nothing to redo.
+  const lighter = slow ? [] : games.filter((g) => canDeepen(g, settings.depth));
 
   return (
     <>
@@ -84,7 +167,7 @@ function Library({ games }: { games: GameRecord[] }) {
           value={settings.depth}
           onChange={(e) => updateSettings({ depth: e.target.value as DepthPreset })}
           aria-label="How deeply to review"
-          title={DEPTHS[settings.depth].hint}
+          aria-describedby="depth-note"
         >
           {(Object.keys(DEPTHS) as DepthPreset[]).map((d) => (
             <option key={d} value={d}>
@@ -105,7 +188,41 @@ function Library({ games }: { games: GameRecord[] }) {
         )}
       </div>
 
+      <p className="depth-note" id="depth-note">
+        <b>{preset.label} review:</b> {preset.hint} {preset.summary} <a href={href('about')}>How the settings differ</a>
+      </p>
+
       {adding && <ImportForm compact />}
+
+      {games.length > 1 && (
+        <div className="list-tools">
+          <input
+            className="input list-search"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by player, opening or date"
+            aria-label="Search your games"
+          />
+          {classes.length > 1 && (
+            <select className="select" value={timeClass} onChange={(e) => setTimeClass(e.target.value as TimeClass | 'all')} aria-label="Time control">
+              <option value="all">All speeds</option>
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  {TIME_CLASS_LABEL[c]}
+                </option>
+              ))}
+            </select>
+          )}
+          <select className="select" value={settings.sort} onChange={(e) => updateSettings({ sort: e.target.value as GameSort })} aria-label="Order games by">
+            {(Object.keys(SORTS) as GameSort[]).map((s) => (
+              <option key={s} value={s}>
+                {SORTS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="list-status" aria-live="polite">
         {engine === 'failed' ? (
@@ -121,31 +238,68 @@ function Library({ games }: { games: GameRecord[] }) {
               <span>
                 {engine === 'starting'
                   ? 'Starting the engine…'
-                  : activeGame
-                    ? `Reviewing ${activeGame.white.name} against ${activeGame.black.name}`
-                    : 'Reviewing…'}
+                  : active.length > 1
+                    ? `Reviewing ${active.length} games at once`
+                    : activeGame
+                      ? `Reviewing ${activeGame.white.name} against ${activeGame.black.name}`
+                      : 'Reviewing…'}
               </span>
               <span className="num">{remaining} to go</span>
             </div>
-            <div className="progress" role="progressbar" aria-label="Current game" aria-valuemin={0} aria-valuemax={100} aria-valuenow={active ? Math.round((active.done / active.total) * 100) : 0}>
-              <i style={{ width: `${active ? (active.done / active.total) * 100 : 0}%` }} />
+            <div
+              className="progress"
+              role="progressbar"
+              aria-label={active.length > 1 ? 'Games being reviewed' : 'Current game'}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(activeShare * 100)}
+            >
+              <i style={{ width: `${activeShare * 100}%` }} />
             </div>
           </>
         ) : (
           <p>
+            {filtered && visible.length > 0 && (
+              <>
+                Showing {visible.length} of {games.length}.{' '}
+                <button className="linklike" type="button" onClick={clearFilters}>
+                  Show all
+                </button>
+                <br />
+              </>
+            )}
             {games.length} {games.length === 1 ? 'game' : 'games'}, {reviewedCount} reviewed.{' '}
             {reviewedCount >= 3 && <a href={href('insights')}>See what they have in common</a>}
+            {lighter.length > 0 && (
+              <>
+                <br />
+                {lighter.length === 1 ? 'One was' : `${lighter.length} were`} reviewed at a lighter setting.{' '}
+                <button className="linklike" type="button" onClick={() => requestReview(lighter.map((g) => g.id), { again: true })}>
+                  Review {lighter.length === 1 ? 'it' : 'them'} again with {preset.label}
+                </button>
+              </>
+            )}
           </p>
         )}
       </div>
 
+      {visible.length === 0 && (
+        <p className="muted list-empty">
+          No games match{query.trim() ? ` “${query.trim()}”` : ''}
+          {timeClass !== 'all' ? ` in ${TIME_CLASS_LABEL[timeClass].toLowerCase()}` : ''}.{' '}
+          <button className="linklike" type="button" onClick={clearFilters}>
+            Show all games
+          </button>
+        </p>
+      )}
+
       <ul className="games">
-        {games.map((g) => (
+        {visible.map((g) => (
           <GameRow
             key={g.id}
             game={g}
             player={player}
-            progress={active?.id === g.id ? active.done / active.total : null}
+            progress={progressOf(active, g.id)}
             queued={queue.includes(g.id)}
             failure={failures[g.id]}
           />
@@ -227,13 +381,20 @@ function GameRow({ game, player, progress, queued, failure }: RowProps) {
         </a>
       </span>
       <span className="sub">
-        {reviewed && game.review!.opening ? <span>{game.review!.opening.name}</span> : <span>{Math.ceil(game.plies / 2)} moves</span>}
+        {reviewed && game.review!.opening ? <a href={href('dictionary', 'opening', game.review!.opening.name)}>{game.review!.opening.name}</a> : <span>{Math.ceil(game.plies / 2)} moves</span>}
         {timeLabel(game) && <span>{timeLabel(game)}</span>}
         <span>{gameDateLabel(game)}</span>
       </span>
       <span className="end">
-        {reviewed ? (
-          <span className="acc" title="Accuracy">
+        {progress !== null ? (
+          <span className="mini-progress">
+            <small className="num">{Math.round(progress * 100)}%</small>
+            <span className="progress">
+              <i style={{ width: `${progress * 100}%` }} />
+            </span>
+          </span>
+        ) : reviewed ? (
+          <span className="acc" title={`Accuracy, from a ${reviewSetting(game.review!)}${queued ? '. Queued to be reviewed again' : ''}`}>
             {side ? (
               <>
                 <b>{game.review!.accuracy[side].toFixed(1)}</b>
@@ -245,13 +406,6 @@ function GameRow({ game, player, progress, queued, failure }: RowProps) {
                 <small>Black {game.review!.accuracy.b.toFixed(1)}</small>
               </>
             )}
-          </span>
-        ) : progress !== null ? (
-          <span className="mini-progress">
-            <small className="num">{Math.round(progress * 100)}%</small>
-            <span className="progress">
-              <i style={{ width: `${progress * 100}%` }} />
-            </span>
           </span>
         ) : queued ? (
           <small className="muted">Queued</small>

@@ -1,6 +1,14 @@
 import { colorOf } from '../lib/insights';
 import type { Color, GameRecord } from '../lib/types';
 
+/** Folds case and accents for searching, so "grunfeld" finds "Grünfeld". */
+export const fold = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[’']/g, "'");
+
 export function timeLabel(game: GameRecord): string {
   const tc = game.timeControl;
   if (game.timeClass === 'daily') return 'Daily';

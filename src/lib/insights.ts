@@ -17,6 +17,8 @@ export interface ClockStat {
 }
 
 export interface MotifStat {
+  /** The tag kind, or "hung-pawn" for pawns left to be taken, which are counted apart from pieces. */
+  key: string;
   kind: Tag['kind'];
   label: string;
   count: number;
@@ -113,6 +115,7 @@ const CLOCK_BUCKETS = [
 ];
 
 const MOTIF_KINDS = Object.keys(MOTIF_LABEL) as Tag['kind'][];
+const HUNG_PAWN_LABEL = 'Left a pawn to be taken';
 const PHASES: Phase[] = ['opening', 'middlegame', 'endgame'];
 const PHASE_NAME: Record<Phase, string> = { opening: 'opening', middlegame: 'middlegame', endgame: 'endgame' };
 
@@ -127,7 +130,7 @@ export function buildInsights(allGames: GameRecord[], player: string): Insights 
   const clock = CLOCK_BUCKETS.map((b) => ({ ...b, moves: 0, errors: 0 }));
   const classAcc = new Map<TimeClass, number[]>();
   const marks = Object.fromEntries(MARK_ORDER.map((m) => [m, 0])) as Record<Mark, number>;
-  const motifs = new Map<Tag['kind'], MotifStat & { gameIds: Set<string> }>();
+  const motifs = new Map<string, MotifStat & { gameIds: Set<string> }>();
   const openings = new Map<string, OpeningStat & { acc: number[] }>();
   const trend: TrendPoint[] = [];
   let moves = 0;
@@ -150,6 +153,8 @@ export function buildInsights(allGames: GameRecord[], player: string): Insights 
 
     const base = game.timeControl?.base;
     let previousClock = base;
+    // The piece left hanging on the player's previous move, so that leaving it there again is not a second error.
+    let stillHanging = '';
 
     for (const m of review.moves) {
       if (m.color !== color) continue;
@@ -169,13 +174,22 @@ export function buildInsights(allGames: GameRecord[], player: string): Insights 
         previousClock = m.clock;
       }
 
+      const hung = m.tags.find((t): t is Extract<Tag, { kind: 'hung' }> => t.kind === 'hung');
+      const hungKey = hung && ERROR_MARKS.includes(m.mark) ? `${hung.piece}${hung.square}` : '';
+      const repeat = hungKey !== '' && hungKey === stillHanging;
+      stillHanging = hungKey;
+
       if (ERROR_MARKS.includes(m.mark)) {
         for (const tag of m.tags) {
           if (!MOTIF_KINDS.includes(tag.kind)) continue;
-          let stat = motifs.get(tag.kind);
+          if (tag.kind === 'hung' && repeat) continue;
+          const pawn = tag.kind === 'hung' && tag.piece === 'p';
+          const key = pawn ? 'hung-pawn' : tag.kind;
+          let stat = motifs.get(key);
           if (!stat) {
-            stat = { kind: tag.kind, label: MOTIF_LABEL[tag.kind]!, count: 0, games: 0, examples: [], gameIds: new Set() };
-            motifs.set(tag.kind, stat);
+            const label = pawn ? HUNG_PAWN_LABEL : MOTIF_LABEL[tag.kind]!;
+            stat = { key, kind: tag.kind, label, count: 0, games: 0, examples: [], gameIds: new Set() };
+            motifs.set(key, stat);
           }
           stat.count++;
           stat.gameIds.add(game.id);

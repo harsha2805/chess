@@ -9,15 +9,17 @@ import { Chess } from 'chess.js';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'data', 'openings');
 const book = {};
+const lines = [];
 let named = 0;
 
 const key = (fen) => fen.split(' ').slice(0, 3).join(' ');
 
 for (const file of readdirSync(dir).filter((f) => f.endsWith('.tsv')).sort()) {
-  const lines = readFileSync(join(dir, file), 'utf8').split('\n').slice(1);
-  for (const line of lines) {
+  const rows = readFileSync(join(dir, file), 'utf8').split('\n').slice(1);
+  for (const line of rows) {
     if (!line.trim()) continue;
     const [eco, name, pgn] = line.split('\t');
+    lines.push([eco, name, pgn.trim()]);
     const chess = new Chess();
     const sans = pgn.replace(/\d+\.(\.\.)?/g, ' ').split(/\s+/).filter(Boolean);
     sans.forEach((san, i) => {
@@ -34,4 +36,6 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.tsv')).sort()) {
 }
 
 writeFileSync(join(root, 'src', 'data', 'openings.json'), JSON.stringify(book));
+// The dictionary lists every named line with its moves: [ECO, name, moves].
+writeFileSync(join(root, 'src', 'data', 'opening-lines.json'), JSON.stringify(lines));
 console.log(`openings.json: ${Object.keys(book).length} positions, ${named} named`);

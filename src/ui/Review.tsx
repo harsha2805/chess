@@ -3,13 +3,13 @@ import { ERROR_MARKS, MARK_LABEL, MARK_ORDER, MARK_SUFFIX, clockText, explain, m
 import { resolvePlayer } from '../lib/insights';
 import { parsePgn } from '../lib/pgn';
 import { formatScore } from '../lib/score';
-import { isReviewed, requestReview, resetEngine, useStore } from '../lib/store';
+import { AUTOPLAY_SPEEDS, DEPTHS, canDeepen, isReviewed, requestReview, resetEngine, reviewSetting, updateSettings, useStore } from '../lib/store';
 import type { Color, GameRecord, GameReview, Mark, MoveReview, ParsedGame, Phase } from '../lib/types';
 import { Board, EvalBar } from './Board';
 import { EvalGraph } from './EvalGraph';
 import { MarkTag } from './MarkTag';
 import { gameDateLabel, gameSite, perspective, resultMark, resultText, timeLabel } from './format';
-import { IconExternal, IconFirst, IconFlip, IconLast, IconNext, IconPrev } from './icons';
+import { IconExternal, IconFirst, IconFlip, IconLast, IconNext, IconPause, IconPlay, IconPrev } from './icons';
 import { href } from './router';
 
 /** Marks that get a bullet in the station list; the rest are plain stops. */
@@ -49,6 +49,8 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
   const [ply, setPlyRaw] = useState(() => Math.max(0, Math.min(total, startPly ?? 0)));
   const [flipped, setFlipped] = useState(() => perspective(game, resolvePlayer(allGames, stored)) === 'b');
   const [showBest, setShowBest] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const speed = useStore((s) => s.settings.autoplay);
 
   const setPly = (next: number) => {
     setPlyRaw(Math.max(0, Math.min(total, next)));
@@ -56,6 +58,27 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
   };
   const plyRef = useRef(ply);
   plyRef.current = ply;
+
+  const togglePlay = () => {
+    if (playing) return setPlaying(false);
+    // Playing from the last move starts the game over.
+    if (plyRef.current >= total) setPly(0);
+    setPlaying(true);
+  };
+  const togglePlayRef = useRef(togglePlay);
+  togglePlayRef.current = togglePlay;
+
+  // Each move stays up for the chosen time. Stepping by hand restarts the wait from the new move.
+  useEffect(() => {
+    if (!playing) return;
+    if (ply >= total) {
+      setPlaying(false);
+      return;
+    }
+    const timer = setTimeout(() => setPly(ply + 1), speed * 1000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, ply, speed, total]);
 
   // Opening a game that has no review yet starts one, ahead of anything queued.
   useEffect(() => {
@@ -74,6 +97,7 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
       else if (e.key === 'Home') setPly(0);
       else if (e.key === 'End') setPly(total);
       else if (e.key === 'f' || e.key === 'F') setFlipped((v) => !v);
+      else if (e.key === ' ' && !(target && /^(BUTTON|A)$/.test(target.tagName))) togglePlayRef.current();
       else return;
       e.preventDefault();
     };
@@ -135,7 +159,8 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
           {timeLabel(game) && <span>{timeLabel(game)}</span>}
           <span>{gameDateLabel(game)}</span>
           {gameSite(game) && <span>{gameSite(game)}</span>}
-          {review?.opening && <span>{review.opening.name}</span>}
+          {review?.opening && <a href={href('dictionary', 'opening', review.opening.name)}>{review.opening.name}</a>}
+          {review && <ReviewSetting game={game} review={review} />}
           {game.url && (
             <a href={game.url} target="_blank" rel="noreferrer">
               Original game
@@ -163,7 +188,7 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
           <PlayerBar game={game} color={orientation} clock={clockFor(orientation)} accuracy={review?.accuracy[orientation]} />
           </div>
           <div className="controls">
-            <button className="icon-btn" type="button" onClick={() => setPly(0)} disabled={ply === 0} aria-label="First move" title="Start (Home)">
+            <button className="icon-btn edge" type="button" onClick={() => setPly(0)} disabled={ply === 0} aria-label="First move" title="Start (Home)">
               <IconFirst />
             </button>
             <button className="icon-btn" type="button" onClick={() => setPly(ply - 1)} disabled={ply === 0} aria-label="Previous move" title="Previous (left arrow)">
@@ -172,9 +197,33 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
             <button className="icon-btn" type="button" onClick={() => setPly(ply + 1)} disabled={ply === total} aria-label="Next move" title="Next (right arrow)">
               <IconNext />
             </button>
-            <button className="icon-btn" type="button" onClick={() => setPly(total)} disabled={ply === total} aria-label="Last move" title="End (End)">
+            <button className="icon-btn edge" type="button" onClick={() => setPly(total)} disabled={ply === total} aria-label="Last move" title="End (End)">
               <IconLast />
             </button>
+            <button
+              className="icon-btn play"
+              type="button"
+              onClick={togglePlay}
+              disabled={total === 0}
+              aria-pressed={playing}
+              aria-label={playing ? 'Pause' : 'Play through the moves'}
+              title={playing ? 'Pause (Space)' : 'Play (Space)'}
+            >
+              {playing ? <IconPause /> : <IconPlay />}
+            </button>
+            <select
+              className="select speed"
+              value={speed}
+              onChange={(e) => updateSettings({ autoplay: Number(e.target.value) })}
+              aria-label="Seconds per move"
+              title="Seconds per move"
+            >
+              {AUTOPLAY_SPEEDS.map((s) => (
+                <option key={s} value={s}>
+                  {s} s
+                </option>
+              ))}
+            </select>
             <span className="spacer" />
             <button className="icon-btn" type="button" onClick={() => setFlipped((v) => !v)} aria-label="Turn the board round" title="Turn the board round (F)">
               <IconFlip />
@@ -185,7 +234,10 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
         <div className="side">
           <section className="sign" aria-live="polite">
             {review ? (
-              <Note game={game} review={review} move={moveReview} showBest={viewingBest} bestDiffers={bestDiffers} onToggleBest={() => setShowBest((v) => !v)} />
+              <Note game={game} review={review} move={moveReview} showBest={viewingBest} bestDiffers={bestDiffers} onToggleBest={() => {
+                  setPlaying(false);
+                  setShowBest((v) => !v);
+                }} />
             ) : (
               <Waiting game={game} />
             )}
@@ -225,7 +277,8 @@ function PlayerBar({ game, color, clock, accuracy }: { game: GameRecord; color: 
         {accuracy !== undefined && (
           <span className="acc" title={`${sideName(color)}'s accuracy`}>
             {accuracy.toFixed(1)}
-            <small>% accuracy</small>
+            <small>%</small>
+            <span className="visually-hidden"> accuracy</span>
           </span>
         )}
         {clock !== undefined && <span className="clock">{clockText(clock)}</span>}
@@ -234,14 +287,38 @@ function PlayerBar({ game, color, clock, accuracy }: { game: GameRecord; color: 
   );
 }
 
+/** Which setting made the review, with a way to redo it when the chosen setting looks further. */
+function ReviewSetting({ game, review }: { game: GameRecord; review: GameReview }) {
+  const preset = useStore((s) => s.settings.depth);
+  const slow = useStore((s) => s.slowEngine);
+  const active = useStore((s) => s.active.find((a) => a.id === game.id) ?? null);
+  const queued = useStore((s) => s.queue.includes(game.id));
+
+  if (active) return <span className="num">Reviewing again: {Math.round((active.done / active.total) * 100)}%</span>;
+  if (queued) return <span>{reviewSetting(review)}, queued to be reviewed again</span>;
+  return (
+    <span>
+      {reviewSetting(review)}
+      {!slow && canDeepen(game, preset) && (
+        <>
+          {' · '}
+          <button className="linklike" type="button" onClick={() => requestReview([game.id], { first: true, again: true })}>
+            Review again with {DEPTHS[preset].label}
+          </button>
+        </>
+      )}
+    </span>
+  );
+}
+
 function Waiting({ game }: { game: GameRecord }) {
-  const active = useStore((s) => s.active);
+  const mine = useStore((s) => s.active.find((a) => a.id === game.id) ?? null);
+  const busy = useStore((s) => s.active.length > 0);
   const queue = useStore((s) => s.queue);
   const engine = useStore((s) => s.engine);
   const engineError = useStore((s) => s.engineError);
   const failure = useStore((s) => s.failures[game.id]);
   const slow = useStore((s) => s.slowEngine);
-  const mine = active?.id === game.id ? active : null;
 
   if (engine === 'failed') {
     return (
@@ -271,7 +348,7 @@ function Waiting({ game }: { game: GameRecord }) {
     );
   }
   const pct = mine ? Math.round((mine.done / mine.total) * 100) : 0;
-  const waiting = !mine && (queue.includes(game.id) || !!active);
+  const waiting = !mine && (queue.includes(game.id) || busy);
   return (
     <div style={{ display: 'grid', gap: 10 }}>
       <p>
@@ -320,7 +397,11 @@ function Note({ game, review, move, showBest, bestDiffers, onToggleBest }: NoteP
         <div className="sign-head">
           <div className="sign-title">
             <h2 className="note-move">Starting position</h2>
-            {review.opening && <span className="note-mark">{review.opening.name}</span>}
+            {review.opening && (
+              <a className="note-mark" href={href('dictionary', 'opening', review.opening.name)}>
+                {review.opening.name}
+              </a>
+            )}
           </div>
           <span className="note-eval">{formatScore(review.startEval)}</span>
         </div>
@@ -343,15 +424,19 @@ function Note({ game, review, move, showBest, bestDiffers, onToggleBest }: NoteP
             {suffix}
           </h2>
           <span className="note-mark">
-            {MARK_LABEL[move.mark]}
+            <a href={href('dictionary', 'mark', move.mark)} title="What this label means">
+              {MARK_LABEL[move.mark]}
+            </a>
             <span className="sep" aria-hidden="true" />
             <span className="visually-hidden">, </span>
-            {PHASE_NAME[move.phase]}
+            <a href={href('dictionary', 'term', 'phases')} title="How the phases are decided">
+              {PHASE_NAME[move.phase]}
+            </a>
           </span>
         </div>
-        <span className="note-eval" title="Evaluation after the move, in pawns, from White's side">
+        <a className="note-eval" href={href('dictionary', 'term', 'evaluation')} title="Evaluation after the move, in pawns, from White's side. What the number means">
           {formatScore(move.evalAfter)}
-        </span>
+        </a>
       </div>
       <p className="lead">{note.lead}</p>
       {note.notes.map((n) => (
@@ -495,8 +580,12 @@ function Summary({ game, review, ply, onSelect }: { game: GameRecord; review: Ga
           <th scope="col" style={{ textAlign: 'left' }}>
             <span className="visually-hidden">Mark</span>
           </th>
-          <th scope="col">{game.white.name}</th>
-          <th scope="col">{game.black.name}</th>
+          <th scope="col" title={game.white.name}>
+            {game.white.name}
+          </th>
+          <th scope="col" title={game.black.name}>
+            {game.black.name}
+          </th>
         </tr>
       </thead>
       <tbody>

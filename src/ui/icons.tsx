@@ -31,6 +31,16 @@ export const IconLast = () => (
     <path d="M17 6v12M7 6l6 6-6 6" />
   </svg>
 );
+export const IconPlay = () => (
+  <svg {...base}>
+    <path d="M8 5.5v13l10-6.5z" fill="currentColor" />
+  </svg>
+);
+export const IconPause = () => (
+  <svg {...base}>
+    <path d="M9 6v12M15 6v12" />
+  </svg>
+);
 export const IconFlip = () => (
   <svg {...base}>
     <path d="M8 4v15M8 4L4.5 7.5M8 4l3.5 3.5M16 20V5M16 20l-3.5-3.5M16 20l3.5-3.5" />
