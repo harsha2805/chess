@@ -1,7 +1,7 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import type { GameRecord } from './types';
 
-const DB_NAME = 'postmortem';
+const DB_NAME = 'chessdebrief';
 const STORE = 'games';
 
 let dbPromise: Promise<IDBPDatabase | null> | null = null;
@@ -11,14 +11,19 @@ let persistent = true;
 
 function open(): Promise<IDBPDatabase | null> {
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
-      },
-    }).catch(() => {
-      persistent = false;
-      return null;
-    });
+    // Some frames throw as soon as indexedDB is touched, instead of failing the request.
+    dbPromise = Promise.resolve()
+      .then(() =>
+        openDB(DB_NAME, 1, {
+          upgrade(db) {
+            if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
+          },
+        }),
+      )
+      .catch(() => {
+        persistent = false;
+        return null;
+      });
   }
   return dbPromise;
 }

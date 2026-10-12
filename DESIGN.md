@@ -1,5 +1,5 @@
 ---
-name: Postmortem
+name: ChessDebrief
 description: Free chess game review drawn as one transit line, night by default.
 colors:
   porcelain: "#f3efe6"
@@ -163,7 +163,7 @@ components:
     padding: "7px 11px 5px"
 ---
 
-# Design System: Postmortem
+# Design System: ChessDebrief
 
 ## Overview
 

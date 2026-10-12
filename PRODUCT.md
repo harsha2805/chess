@@ -12,7 +12,7 @@ Improving club players, roughly 800 to 2000, who play many online games on chess
 
 ## Product Purpose
 
-Postmortem gives a full engine review of a player's games for free and without limits, and then shows what their games have in common. Success is a player leaving with one or two concrete, recurring habits to fix, not just a list of red marks on a single game.
+ChessDebrief gives a full engine review of a player's games for free and without limits, and then shows what their games have in common. Success is a player leaving with one or two concrete, recurring habits to fix, not just a list of red marks on a single game.
 
 ## Positioning
 
@@ -22,7 +22,7 @@ Postmortem gives a full engine review of a player's games for free and without l
 
 ## Operating Context
 
-- A player finishes a session on chess.com or Lichess, opens Postmortem, enters a username (or pastes a profile link or PGN), and queues recent games for review.
+- A player finishes a session on chess.com or Lichess, opens ChessDebrief, enters a username (or pastes a profile link or PGN), and queues recent games for review.
 - Reviews run in the background with a progress indicator, and results are cached, so nothing is analysed twice.
 - Reviewing a game means stepping through moves on a board, reading the marks, the winning-chances graph, the engine's better line and the note on why.
 - Once three or more games are reviewed, the Insights page summarises them.
@@ -36,11 +36,11 @@ Postmortem gives a full engine review of a player's games for free and without l
 - Accuracy uses the formula Lichess publishes, so numbers differ a little from chess.com.
 - Review depth presets can be chosen. Username import calls the public chess.com and Lichess APIs straight from the browser.
 - A preview build (`npm run build:preview`) turns off username import and report sending.
-- "Postmortem" is a working name, kept in one place: `src/config.ts`.
+- The name is kept in one place: `src/config.ts`.
 
 ## Brand Commitments
 
-- Name: Postmortem (working name). The brand mark is "!!", the brilliant-move annotation.
+- Name: ChessDebrief. The brand mark is "!!", the brilliant-move annotation.
 - Voice: plain, direct, and unhyped. It uses short factual sentences and avoids chess jargon where everyday words work ("gives up winning chances", "piece left to be taken").
 - Not affiliated with Chess.com or Lichess, and must not look like either.
 

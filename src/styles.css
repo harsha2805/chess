@@ -1,4 +1,4 @@
-/* Postmortem — Night Line.
+/* ChessDebrief — Night Line.
    A game is a journey on one transit line: phases are fare zones, marked moves are interchanges,
    and the move you are on is a station sign. Midnight enamel ground, porcelain signs, one humanist
    sign face (Overpass). Mark colours live only on round route bullets, always with a glyph. */
@@ -450,8 +450,7 @@ textarea {
   display: grid;
   gap: 6px;
 }
-.field > span,
-.field-label {
+.field > span {
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--ink-2);
@@ -597,12 +596,6 @@ textarea {
 .tag.mistake { background: var(--m-mistake); }
 .tag.blunder { background: var(--m-blunder); }
 
-.ink-brilliant { color: var(--m-brilliant-ink); }
-.ink-great { color: var(--m-great-ink); }
-.ink-inaccuracy { color: var(--m-inaccuracy-ink); }
-.ink-miss { color: var(--m-miss-ink); }
-.ink-mistake { color: var(--m-mistake-ink); }
-.ink-blunder { color: var(--m-blunder-ink); }
 
 /* ---------- Board ---------- */
 
@@ -1283,8 +1276,22 @@ a.note-eval {
 
 .intro {
   display: grid;
+  grid-template-areas: 'text' 'board' 'map';
   gap: 36px;
   padding: 12px 0;
+}
+.intro-text {
+  grid-area: text;
+}
+.intro-map {
+  grid-area: map;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.intro-map-note {
+  font-size: 0.875rem;
+  color: var(--ink-3);
 }
 .intro h1 {
   font-size: clamp(2rem, 4.6vw, 3.5rem);
@@ -1329,6 +1336,8 @@ a.note-eval {
   color: var(--ink-2);
 }
 .demo {
+  grid-area: board;
+  margin: 0;
   /* Sized by the window's height as well as its width, so the whole board and its
      caption fit on screen in a short window. */
   width: 100%;
@@ -1342,6 +1351,8 @@ a.note-eval {
   position: relative;
 }
 .demo .caption {
+  /* Room for a title and two lines, so stepping through the game does not make the sign jump. */
+  min-height: 7.75rem;
   padding: 16px 12px 22px;
   font-size: 0.9375rem;
   line-height: 1.5;
@@ -1353,8 +1364,70 @@ a.note-eval {
   letter-spacing: -0.02em;
   margin-bottom: 4px;
 }
-.demo .caption .ink-brilliant {
-  color: inherit;
+
+/* Three stops on one route: how a visit goes, under the welcome. Drawn like the Insights figures. */
+.stops {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 40px;
+  margin: 64px 0 8px;
+  padding: 32px 0 0;
+  list-style: none;
+}
+.stops::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  top: 9px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--route-under);
+}
+.stops li {
+  position: relative;
+}
+.stops li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -32px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ground);
+  box-shadow: inset 0 0 0 5px var(--route);
+}
+.stops h2 {
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+.stops p {
+  margin-top: 6px;
+  color: var(--ink-2);
+  max-width: 42ch;
+}
+/* Narrow: the route runs down the left, one stop beside each step. */
+@media (max-width: 639px) {
+  .stops {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 26px;
+    margin-top: 48px;
+    padding: 0 0 0 38px;
+  }
+  .stops::before {
+    left: 9px;
+    right: auto;
+    top: 10px;
+    bottom: 10px;
+    width: 4px;
+    height: auto;
+  }
+  .stops li::before {
+    left: -38px;
+    top: -1px;
+  }
 }
 
 .addbar {
@@ -2227,14 +2300,25 @@ a.note-eval {
 }
 
 @media (min-width: 960px) {
+  /* The text and the sample game's line share the left column; the board takes the right, as large
+     as fits with its caption under the top bar (the window less about 232px). */
   .intro {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-    gap: 64px;
-    align-items: center;
-    padding: 28px 0 20px;
+    grid-template-columns: minmax(420px, 1fr) minmax(0, min(600px, max(300px, calc(100dvh - 232px))));
+    grid-template-areas: 'text board' 'map board';
+    grid-template-rows: auto 1fr;
+    column-gap: 64px;
+    row-gap: 32px;
+    padding: 0 0 16px;
   }
   .intro .demo {
-    justify-self: end;
+    max-width: none;
+    align-self: start;
+  }
+  .intro .importer {
+    max-width: none;
+  }
+  .intro-map {
+    align-self: start;
   }
   .review {
     grid-template-columns: minmax(0, min(52vw, max(240px, calc(100dvh - 300px)), 620px)) minmax(360px, 1fr);
@@ -2319,13 +2403,16 @@ a.note-eval {
   }
 }
 
-@media (max-width: 480px) {
-  .page {
-    padding-top: 16px;
-  }
+/* Below this width the name and the full nav do not fit side by side: the roundel stands in for the name. */
+@media (max-width: 599px) {
   .brand {
     font-size: 0;
     gap: 0;
+  }
+}
+@media (max-width: 480px) {
+  .page {
+    padding-top: 16px;
   }
   .nav a {
     padding: 8px 12px 6px;

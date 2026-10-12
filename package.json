@@ -1,5 +1,5 @@
 {
-  "name": "postmortem",
+  "name": "chessdebrief",
   "private": true,
   "description": "Free chess game review for chess.com and Lichess games. Stockfish runs in the browser.",
   "version": "0.1.0",

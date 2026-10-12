@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 
 export type Theme = 'night' | 'day';
-const KEY = 'postmortem-theme';
+/** Also read in index.html, to apply the theme before the first paint. */
+const KEY = 'chessdebrief-theme';
 
 /** The saved colour theme. Night is the default; index.html applies it before the first paint. */
 function saved(): Theme {

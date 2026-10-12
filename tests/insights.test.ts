@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInsights, resolvePlayer } from '../src/lib/insights';
+import { buildInsights, insightPlayers, resolvePlayer } from '../src/lib/insights';
 import { REVIEW_VERSION, type GameRecord, type Mark, type MoveReview, type PieceType, type Tag } from '../src/lib/types';
 
 const game = (white: string, black: string): GameRecord => ({
@@ -28,6 +28,19 @@ describe('whose games these are', () => {
   });
   it('drops a stored name that no longer appears', () => {
     expect(resolvePlayer([game('x', 'y')], 'gone')).toBe('');
+  });
+});
+
+describe('whose insights can be shown', () => {
+  const imported = (white: string, black: string, me: 'w' | 'b'): GameRecord => ({ ...game(white, black), source: 'chesscom', me });
+
+  it('lists the account of imported games, not an opponent met more than once', () => {
+    const games = [imported('Harsha', 'rival', 'w'), imported('rival', 'Harsha', 'b'), imported('Harsha', 'other', 'w')];
+    expect(insightPlayers(games)).toEqual([{ name: 'Harsha', games: 3 }]);
+  });
+  it('lists anyone in two or more pasted games, and the account holder', () => {
+    const games = [game('Morphy', 'Duke'), game('Morphy', 'Anderssen'), game('Anderssen', 'Paulsen'), imported('me', 'Morphy', 'w')];
+    expect(insightPlayers(games).map((p) => p.name)).toEqual(['Morphy', 'Anderssen', 'me']);
   });
 });
 

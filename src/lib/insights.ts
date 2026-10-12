@@ -1,4 +1,5 @@
-import { ERROR_MARKS, MARK_ORDER, MOTIF_LABEL, SERIOUS_MARKS } from './explain';
+import { ERROR_MARKS, MARK_ORDER, MOTIF_LABEL, PHASE_LABEL, SERIOUS_MARKS } from './explain';
+import { mean } from './score';
 import { isReviewed, type Color, type GameRecord, type Mark, type Phase, type Tag, type TimeClass } from './types';
 
 export interface PhaseStat {
@@ -36,12 +37,14 @@ export interface OpeningStat {
   accuracy: number;
 }
 
+export type Outcome = 'win' | 'draw' | 'loss';
+
 export interface TrendPoint {
   gameId: string;
   playedAt: number;
   accuracy: number;
   opponent: string;
-  outcome: 'win' | 'draw' | 'loss';
+  outcome: Outcome;
   color: Color;
 }
 
@@ -79,6 +82,29 @@ export function playerNames(games: GameRecord[]): { name: string; games: number 
 }
 
 /**
+ * The people insights can be shown for, most games first. A game fetched by username says
+ * which side was the account's, so only that side counts; an opponent met twice is not
+ * listed. Pasted games carry no owner, so there anyone in at least two of them counts.
+ */
+export function insightPlayers(games: GameRecord[]): { name: string; games: number }[] {
+  const eligible = new Set<string>();
+  const unowned = new Map<string, number>();
+  for (const g of games) {
+    if (g.me) {
+      eligible.add((g.me === 'w' ? g.white.name : g.black.name).toLowerCase());
+      continue;
+    }
+    for (const p of [g.white.name, g.black.name]) {
+      const key = p.toLowerCase();
+      const n = (unowned.get(key) ?? 0) + 1;
+      unowned.set(key, n);
+      if (n >= 2) eligible.add(key);
+    }
+  }
+  return playerNames(games).filter((p) => eligible.has(p.name.toLowerCase()));
+}
+
+/**
  * Whose games these are: the stored name when it still appears in them, otherwise a name
  * that is in at least half of the games and in more of them than anyone else.
  */
@@ -98,14 +124,24 @@ export function colorOf(game: GameRecord, player: string): Color | null {
   return null;
 }
 
-export function outcomeFor(game: GameRecord, color: Color): 'win' | 'draw' | 'loss' | null {
+export function outcomeFor(game: GameRecord, color: Color): Outcome | null {
   if (game.result === '1/2-1/2') return 'draw';
   if (game.result === '1-0') return color === 'w' ? 'win' : 'loss';
   if (game.result === '0-1') return color === 'b' ? 'win' : 'loss';
   return null;
 }
 
-const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+/** The items with the lowest and the highest value, or null when there are none. */
+export function extremes<T>(items: T[], value: (item: T) => number): { low: T; high: T } | null {
+  if (items.length === 0) return null;
+  let low = items[0];
+  let high = items[0];
+  for (const item of items) {
+    if (value(item) < value(low)) low = item;
+    if (value(item) > value(high)) high = item;
+  }
+  return { low, high };
+}
 
 const CLOCK_BUCKETS = [
   { key: 'plenty', label: 'Over half left', min: 0.5 },
@@ -117,7 +153,6 @@ const CLOCK_BUCKETS = [
 const MOTIF_KINDS = Object.keys(MOTIF_LABEL) as Tag['kind'][];
 const HUNG_PAWN_LABEL = 'Left a pawn to be taken';
 const PHASES: Phase[] = ['opening', 'middlegame', 'endgame'];
-const PHASE_NAME: Record<Phase, string> = { opening: 'opening', middlegame: 'middlegame', endgame: 'endgame' };
 
 /** Patterns across all reviewed games of one player. */
 export function buildInsights(allGames: GameRecord[], player: string): Insights {
@@ -235,15 +270,15 @@ export function buildInsights(allGames: GameRecord[], player: string): Insights 
 
   // ---- Takeaways: only said when there are enough moves behind them ----
   const takeaways: string[] = [];
-  const phasesWithData = byPhase.filter((p) => p.moves >= 25);
-  if (phasesWithData.length >= 2) {
-    const worst = phasesWithData.reduce((a, b) => (b.accuracy < a.accuracy ? b : a));
-    const best = phasesWithData.reduce((a, b) => (b.accuracy > a.accuracy ? b : a));
-    if (best.accuracy - worst.accuracy >= 4) {
-      takeaways.push(
-        `The ${PHASE_NAME[worst.phase]} is where you lose the most: ${worst.accuracy.toFixed(0)}% accuracy, against ${best.accuracy.toFixed(0)}% in the ${PHASE_NAME[best.phase]}.`,
-      );
-    }
+  const phaseRange = extremes(
+    byPhase.filter((p) => p.moves >= 25),
+    (p) => p.accuracy,
+  );
+  if (phaseRange && phaseRange.high.accuracy - phaseRange.low.accuracy >= 4) {
+    const { low: worst, high: best } = phaseRange;
+    takeaways.push(
+      `The ${PHASE_LABEL[worst.phase].toLowerCase()} is where you lose the most: ${worst.accuracy.toFixed(0)}% accuracy, against ${best.accuracy.toFixed(0)}% in the ${PHASE_LABEL[best.phase].toLowerCase()}.`,
+    );
   }
   const calm = byClock[0];
   const scramble = byClock[3];
@@ -262,13 +297,12 @@ export function buildInsights(allGames: GameRecord[], player: string): Insights 
     const better = byColor.w.accuracy > byColor.b.accuracy ? 'White' : 'Black';
     takeaways.push(`You play ${Math.abs(byColor.w.accuracy - byColor.b.accuracy).toFixed(0)} points more accurately with ${better}.`);
   }
-  const triedOpenings = openingList.filter((o) => o.games >= 3);
-  if (triedOpenings.length >= 2) {
-    const worst = triedOpenings.reduce((a, b) => (b.accuracy < a.accuracy ? b : a));
-    const best = triedOpenings.reduce((a, b) => (b.accuracy > a.accuracy ? b : a));
-    if (best.accuracy - worst.accuracy >= 5) {
-      takeaways.push(`Your steadiest opening is the ${best.name}; the ${worst.name} gives you the most trouble.`);
-    }
+  const openingRange = extremes(
+    openingList.filter((o) => o.games >= 3),
+    (o) => o.accuracy,
+  );
+  if (openingRange && openingRange.high.accuracy - openingRange.low.accuracy >= 5) {
+    takeaways.push(`Your steadiest opening is the ${openingRange.high.name}; the ${openingRange.low.name} gives you the most trouble.`);
   }
 
   return {

@@ -1,58 +1,17 @@
-import { useMemo, useState } from 'react';
-import { SAMPLE_PGN } from '../config';
-import { parsePgn } from '../lib/pgn';
+import { memo, useMemo, useState } from 'react';
 import { DEPTHS, canDeepen, cancelReviews, isReviewed, removeGames, requestReview, resetEngine, reviewSetting, updateSettings, useStore, type DepthPreset, type GameSort, type Progress } from '../lib/store';
 import type { GameRecord, TimeClass } from '../lib/types';
-import { Board } from './Board';
-import { ImportForm, openSample } from './ImportForm';
-import { fold, gameDateLabel, perspective, resultMark, timeLabel } from './format';
+import { ImportForm } from './ImportForm';
+import { OUTCOME_LABEL, TIME_CLASS_LABEL, fold, gameDateLabel, perspective, resultMark, timeLabel } from './format';
 import { outcomeFor, resolvePlayer } from '../lib/insights';
 import { href } from './router';
+import { Welcome } from './Welcome';
 
 export function Home() {
   const ready = useStore((s) => s.ready);
   const games = useStore((s) => s.games);
   if (!ready) return <p className="muted">Opening your games…</p>;
   return games.length === 0 ? <Welcome /> : <Library games={games} />;
-}
-
-function Welcome() {
-  // The position after 16.Qb8+ in the sample game, the most famous queen sacrifice there is.
-  const demo = useMemo(() => {
-    const move = parsePgn(SAMPLE_PGN).moves[30];
-    return { fen: move.fenAfter, from: move.from, to: move.to };
-  }, []);
-
-  return (
-    <div className="intro">
-      <div>
-        <h1>See where each game was won and lost.</h1>
-        <p className="lede">
-          Stockfish goes through your chess.com or Lichess games move by move, and shows what keeps going wrong from one game to the next.
-          Free, with no daily limit.
-        </p>
-        <ImportForm />
-      </div>
-      <figure className="demo" style={{ margin: 0 }}>
-        <Board
-          fen={demo.fen}
-          orientation="w"
-          move={{ from: demo.from, to: demo.to }}
-          mark="brilliant"
-          label="Morphy against Duke Karl and Count Isouard, Paris 1858, after 16.Qb8+: the white queen gives check on b8, where the knight can take it."
-        />
-        <figcaption className="caption">
-          <b>
-            16.Qb8+<span className="ink-brilliant">!!</span>
-          </b>{' '}
-          White offers the queen, and it works: after 16…Nxb8 comes 17.Rd8 mate. Morphy, Paris 1858.{' '}
-          <button className="linklike" type="button" onClick={() => void openSample()}>
-            Review this game
-          </button>
-        </figcaption>
-      </figure>
-    </div>
-  );
 }
 
 const SORTS: Record<GameSort, string> = {
@@ -63,15 +22,7 @@ const SORTS: Record<GameSort, string> = {
   worst: 'Worst accuracy',
 };
 
-const TIME_CLASSES: TimeClass[] = ['bullet', 'blitz', 'rapid', 'classical', 'daily', 'unknown'];
-const TIME_CLASS_LABEL: Record<TimeClass, string> = {
-  bullet: 'Bullet',
-  blitz: 'Blitz',
-  rapid: 'Rapid',
-  classical: 'Classical',
-  daily: 'Daily',
-  unknown: 'No time control',
-};
+const TIME_CLASSES = Object.keys(TIME_CLASS_LABEL) as TimeClass[];
 
 /** The accuracy a game is sorted by: the player's own, or both sides' average when the side is unknown. */
 function sortAccuracy(game: GameRecord, player: string): number | null {
@@ -94,7 +45,7 @@ function searchText(game: GameRecord, player: string): string {
       timeLabel(game),
       TIME_CLASS_LABEL[game.timeClass],
       gameDateLabel(game),
-      outcome === 'win' ? 'won win' : outcome === 'loss' ? 'lost loss' : outcome === 'draw' ? 'drew draw' : '',
+      outcome && `${OUTCOME_LABEL[outcome].verb} ${outcome}`,
       side === 'w' ? 'white' : side === 'b' ? 'black' : '',
     ]
       .filter(Boolean)
@@ -121,10 +72,12 @@ function Library({ games }: { games: GameRecord[] }) {
   const [query, setQuery] = useState('');
   const [timeClass, setTimeClass] = useState<TimeClass | 'all'>('all');
   const classes = useMemo(() => TIME_CLASSES.filter((c) => games.some((g) => g.timeClass === c)), [games]);
+  // Built once per change to the games, not on every keystroke.
+  const index = useMemo(() => new Map(games.map((g) => [g.id, searchText(g, player)])), [games, player]);
   const visible = useMemo(() => {
     const words = fold(query).split(/\s+/).filter(Boolean);
     const list = games.filter(
-      (g) => (timeClass === 'all' || g.timeClass === timeClass) && (words.length === 0 || words.every((w) => searchText(g, player).includes(w))),
+      (g) => (timeClass === 'all' || g.timeClass === timeClass) && words.every((w) => index.get(g.id)!.includes(w)),
     );
     const sort = settings.sort;
     if (sort === 'newest') return list; // The store keeps games newest first.
@@ -137,14 +90,14 @@ function Library({ games }: { games: GameRecord[] }) {
       if (x === null || y === null) return x === null ? (y === null ? 0 : 1) : -1;
       return sort === 'best' ? y - x : x - y;
     });
-  }, [games, query, timeClass, settings.sort, player]);
+  }, [games, index, query, timeClass, settings.sort, player]);
   const filtered = visible.length !== games.length;
   const clearFilters = () => {
     setQuery('');
     setTimeClass('all');
   };
 
-  const pending = games.filter((g) => !isReviewed(g));
+  const pending = useMemo(() => games.filter((g) => !isReviewed(g)), [games]);
   const reviewedCount = games.length - pending.length;
   const working = active.length > 0 || queue.length > 0;
   const activeGame = active.length === 1 ? games.find((g) => g.id === active[0].id) : undefined;
@@ -153,7 +106,8 @@ function Library({ games }: { games: GameRecord[] }) {
   const activeShare = active.length ? active.reduce((sum, a) => sum + a.done / a.total, 0) / active.length : 0;
   const preset = DEPTHS[settings.depth];
   // The backup engine cannot look further than it already did, so it offers nothing to redo.
-  const lighter = slow ? [] : games.filter((g) => canDeepen(g, settings.depth));
+  const lighter = useMemo(() => (slow ? [] : games.filter((g) => canDeepen(g, settings.depth))), [games, slow, settings.depth]);
+  const queued = useMemo(() => new Set(queue), [queue]);
 
   return (
     <>
@@ -300,7 +254,7 @@ function Library({ games }: { games: GameRecord[] }) {
             game={g}
             player={player}
             progress={progressOf(active, g.id)}
-            queued={queue.includes(g.id)}
+            queued={queued.has(g.id)}
             failure={failures[g.id]}
           />
         ))}
@@ -343,20 +297,20 @@ interface RowProps {
   failure?: string;
 }
 
-function GameRow({ game, player, progress, queued, failure }: RowProps) {
+/** One game in the list. Memoised: while reviews run, only the rows whose progress changes are drawn again. */
+const GameRow = memo(function GameRow({ game, player, progress, queued, failure }: RowProps) {
   const side = perspective(game, player);
   const outcome = side ? outcomeFor(game, side) : null;
   const reviewed = isReviewed(game);
   const opponent = side === 'w' ? game.black : side === 'b' ? game.white : null;
-  const chip = outcome === 'win' ? 'W' : outcome === 'loss' ? 'L' : outcome === 'draw' ? 'D' : null;
-  const outcomeWord = outcome === 'win' ? 'Won' : outcome === 'loss' ? 'Lost' : outcome === 'draw' ? 'Drew' : null;
+  const time = timeLabel(game);
 
   return (
     <li className="game">
-      {chip ? (
-        <span className={`res ${outcome}`} title={outcomeWord ?? undefined}>
-          <span aria-hidden="true">{chip}</span>
-          <span className="visually-hidden">{outcomeWord}</span>
+      {outcome ? (
+        <span className={`res ${outcome}`} title={OUTCOME_LABEL[outcome].verb}>
+          <span aria-hidden="true">{OUTCOME_LABEL[outcome].letter}</span>
+          <span className="visually-hidden">{OUTCOME_LABEL[outcome].verb}</span>
         </span>
       ) : (
         <span className="res" style={{ fontSize: '0.6875rem' }}>
@@ -382,7 +336,7 @@ function GameRow({ game, player, progress, queued, failure }: RowProps) {
       </span>
       <span className="sub">
         {reviewed && game.review!.opening ? <a href={href('dictionary', 'opening', game.review!.opening.name)}>{game.review!.opening.name}</a> : <span>{Math.ceil(game.plies / 2)} moves</span>}
-        {timeLabel(game) && <span>{timeLabel(game)}</span>}
+        {time && <span>{time}</span>}
         <span>{gameDateLabel(game)}</span>
       </span>
       <span className="end">
@@ -419,4 +373,4 @@ function GameRow({ game, player, progress, queued, failure }: RowProps) {
       </span>
     </li>
   );
-}
+});

@@ -1,15 +1,13 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { MARK_LABEL, MARK_ORDER } from '../lib/explain';
-import { buildInsights, outcomeFor, playerNames, resolvePlayer, type Insights as InsightsData, type TrendPoint } from '../lib/insights';
+import { MARK_LABEL, MARK_ORDER, PHASE_LABEL, moveLabel } from '../lib/explain';
+import { buildInsights, colorOf, extremes, insightPlayers, outcomeFor, resolvePlayer, type Insights as InsightsData, type TrendPoint } from '../lib/insights';
 import { isReviewed, requestReview, updateSettings, useStore } from '../lib/store';
-import type { GameRecord, Phase } from '../lib/types';
+import type { GameRecord } from '../lib/types';
 import { MarkTag } from './MarkTag';
-import { dateLabel, gameDateLabel, perspective } from './format';
+import { OUTCOME_LABEL, dateLabel, gameDateLabel, perspective } from './format';
 import { useWidth } from './hooks';
 import { IconChevron } from './icons';
 import { href, navigate } from './router';
-
-const PHASE_LABEL: Record<Phase, string> = { opening: 'Opening', middlegame: 'Middlegame', endgame: 'Endgame' };
 
 export function Insights() {
   const ready = useStore((s) => s.ready);
@@ -17,8 +15,10 @@ export function Insights() {
   const stored = useStore((s) => s.settings.player);
   const working = useStore((s) => s.active.length > 0 || s.queue.length > 0);
 
-  const names = useMemo(() => playerNames(games), [games]);
-  const player = resolvePlayer(games, stored) || names[0]?.name || '';
+  const names = useMemo(() => insightPlayers(games), [games]);
+  // A name chosen before that is no longer offered (an opponent, say) gives way to the first one that is.
+  const resolved = resolvePlayer(games, stored);
+  const player = names.some((n) => n.name === resolved) ? resolved : names[0]?.name || resolved;
   const data = useMemo(() => (player ? buildInsights(games, player) : null), [games, player]);
 
   if (!ready) return <p className="muted">Opening your games…</p>;
@@ -35,8 +35,8 @@ export function Insights() {
     );
   }
 
-  const pending = games.filter((g) => !isReviewed(g) && (g.white.name === player || g.black.name === player));
-  const options = names.filter((n) => n.games >= 2 || n.name === player).slice(0, 12);
+  const pending = games.filter((g) => !isReviewed(g) && colorOf(g, player));
+  const options = names.length > 0 ? names.slice(0, 12) : [{ name: player, games: 0 }];
 
   return (
     <>
@@ -76,16 +76,16 @@ export function Insights() {
 
 function Report({ data, games, player }: { data: InsightsData; games: GameRecord[]; player: string }) {
   const { record } = data;
-  const phases = data.byPhase.filter((p) => p.moves >= 10);
-  const worstPhase = phases.reduce<(typeof phases)[number] | null>((a, b) => (!a || b.accuracy < a.accuracy ? b : a), null);
-  const bestPhase = phases.reduce<(typeof phases)[number] | null>((a, b) => (!a || b.accuracy > a.accuracy ? b : a), null);
+  const phases = extremes(
+    data.byPhase.filter((p) => p.moves >= 10),
+    (p) => p.accuracy,
+  );
   // Only point at a phase when it is clearly behind the others.
-  const weakPhase = worstPhase && bestPhase && bestPhase.accuracy - worstPhase.accuracy >= 4 ? worstPhase.phase : null;
+  const weakPhase = phases && phases.high.accuracy - phases.low.accuracy >= 4 ? phases.low.phase : null;
   const clockRows = data.byClock.filter((b) => b.moves > 0);
   // Only point at one part of the clock when there is another to compare it with.
   const comparableClock = clockRows.filter((b) => b.moves >= 10);
-  const worstClock =
-    comparableClock.length >= 2 ? comparableClock.reduce<(typeof clockRows)[number] | null>((a, b) => (!a || b.rate > a.rate ? b : a), null) : null;
+  const worstClock = comparableClock.length >= 2 ? extremes(comparableClock, (b) => b.rate)!.high : null;
   const maxRate = Math.max(5, ...clockRows.map((b) => b.rate));
   const topMotif = data.motifs[0]?.count ?? 0;
 
@@ -318,11 +318,7 @@ function Motifs({ data, top }: { data: InsightsData; top: number }) {
               {m.examples.map((ex) => (
                 <li key={`${ex.gameId}${ex.ply}`}>
                   <a href={href('game', ex.gameId, ex.ply)}>
-                    <b>
-                      {Math.ceil(ex.ply / 2)}
-                      {ex.ply % 2 === 1 ? '.' : '…'}
-                      {ex.san}
-                    </b>{' '}
+                    <b>{moveLabel(ex)}</b>{' '}
                     against {ex.opponent}
                   </a>
                 </li>
@@ -334,8 +330,6 @@ function Motifs({ data, top }: { data: InsightsData; top: number }) {
     </ul>
   );
 }
-
-const OUTCOME_WORD = { win: 'Won', draw: 'Drew', loss: 'Lost' } as const;
 
 function Dot({ point, cx, cy, active }: { point: TrendPoint; cx: number; cy: number; active: boolean }) {
   const r = active ? 6 : 4.5;
@@ -401,7 +395,7 @@ function TrendChart({ points, average }: { points: TrendPoint[]; average: number
       </svg>
       {h && hover !== null && (
         <div className="chart-tip" style={{ left: Math.max(90, Math.min(width - 90, x(hover))), top: y(h.accuracy) - 12 }}>
-          <b>{h.accuracy.toFixed(1)}%</b> {OUTCOME_WORD[h.outcome]} against {h.opponent}
+          <b>{h.accuracy.toFixed(1)}%</b> {OUTCOME_LABEL[h.outcome].verb} against {h.opponent}
         </div>
       )}
       <div className="legend" aria-hidden="true">
@@ -454,8 +448,6 @@ function Pulse({ games, player }: { games: GameRecord[]; player: string }) {
         }),
     [games, player],
   );
-  if (rows.length === 0) return null;
-
   // Wide screens keep the names in a gutter; narrow ones give the lines the full width and set each name above its line.
   const narrow = width < 560;
   const left = narrow ? 4 : 190;
@@ -468,10 +460,33 @@ function Pulse({ games, player }: { games: GameRecord[]; player: string }) {
   const x = (move: number) => left + ((move - 0.5) / span) * (width - left - right);
   const sigma = Math.max(3, ((width - left - right) / span) * 0.7);
   const ticks = [10, 20, 30, 40, 50, 60, 70, 80].filter((t) => t < span);
+  const lines = useMemo(
+    () =>
+      rows.map((r, i) => {
+        const base = top + i * gap;
+        const end = Math.min(width - right, x(Math.min(r.length, span) + 0.5));
+        // Each costly move raises a bell curve; past three widths its lift is far below a pixel.
+        const peaks = r.costly.filter((c) => c.move <= span).map((c) => ({ at: x(c.move), height: Math.min(cap - 6, c.loss * (narrow ? 1 : 1.7)) }));
+        let d = '';
+        for (let px = left; px <= end; px += 3) {
+          let lift = 0;
+          for (const p of peaks) {
+            const t = (px - p.at) / sigma;
+            if (t > -3 && t < 3) lift += p.height * Math.exp(-t * t);
+          }
+          d += `${px === left ? 'M' : 'L'}${px.toFixed(1)},${(base - Math.min(lift, cap)).toFixed(1)}`;
+        }
+        return { d, end, base };
+      }),
+    // The layout values all follow from `rows` and `width`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, width],
+  );
 
   // Long lists scroll inside the panel; the move numbers stay above them.
   const inView = narrow ? PULSE_ROWS_IN_VIEW.narrow : PULSE_ROWS_IN_VIEW.wide;
   const scrolls = rows.length > inView;
+  if (rows.length === 0) return null;
   return (
     <div className="chart pulse">
       <svg className="pulse-axis-row" height="18" viewBox={`0 0 ${width} 18`} aria-hidden="true">
@@ -494,29 +509,19 @@ function Pulse({ games, player }: { games: GameRecord[]; player: string }) {
       >
       <svg height={H} viewBox={`0 0 ${width} ${H}`} aria-label={`${rows.length} reviewed games, one line each, newest at the top.`}>
         {rows.map((r, i) => {
-          const base = top + i * gap;
-          const end = Math.min(width - right, x(Math.min(r.length, span) + 0.5));
-          let d = '';
-          for (let px = left; px <= end; px += 3) {
-            let lift = 0;
-            for (const c of r.costly) {
-              if (c.move > span) continue;
-              const t = (px - x(c.move)) / sigma;
-              lift += Math.min(cap - 6, c.loss * (narrow ? 1 : 1.7)) * Math.exp(-t * t);
-            }
-            d += `${px === left ? 'M' : 'L'}${px.toFixed(1)},${(base - Math.min(lift, cap)).toFixed(1)}`;
-          }
+          const { d, end, base } = lines[i];
           const name = !narrow && r.opponent.length > 20 ? `${r.opponent.slice(0, 19)}…` : r.opponent;
-          const word = r.outcome === 'win' ? 'won' : r.outcome === 'loss' ? 'lost' : 'drew';
+          // An unfinished game is shown like a draw.
+          const outcome = OUTCOME_LABEL[r.outcome ?? 'draw'];
           const labelY = narrow ? base - cap - 4 : base;
           return (
-            <a key={r.game.id} href={href('game', r.game.id)} aria-label={`${word} against ${r.opponent}, ${gameDateLabel(r.game)}, accuracy ${r.accuracy.toFixed(1)}%`}>
+            <a key={r.game.id} href={href('game', r.game.id)} aria-label={`${outcome.verb.toLowerCase()} against ${r.opponent}, ${gameDateLabel(r.game)}, accuracy ${r.accuracy.toFixed(1)}%`}>
               <rect x="0" y={base - gap + 4} width={width} height={gap} fill="transparent" />
               <path className="pulse-fill" d={`${d} L${end.toFixed(1)},${H} L${left},${H} Z`} />
               <path className="pulse-line" d={d} />
               <circle className={r.outcome === 'win' ? 'pulse-chip win' : 'pulse-chip'} cx="8" cy={labelY - 4} r="7" />
               <text className="pulse-chip-text" x="8" y={labelY - 1} textAnchor="middle">
-                {r.outcome === 'win' ? 'W' : r.outcome === 'loss' ? 'L' : 'D'}
+                {outcome.letter}
               </text>
               <text className="pulse-label" x="22" y={labelY}>
                 {name}

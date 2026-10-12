@@ -1,5 +1,5 @@
 /** One place for the names and addresses the app shows. */
-export const APP_NAME = 'Postmortem';
+export const APP_NAME = 'ChessDebrief';
 export const REPO_URL = 'https://github.com/harsha2805/chess';
 /** Bug reports are posted here and emailed by the server. See public/api/report.php. */
 export const REPORT_ENDPOINT = 'api/report.php';

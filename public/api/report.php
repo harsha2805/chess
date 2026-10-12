@@ -72,7 +72,7 @@ if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 // Rate limit: a few reports per address per hour, and a ceiling per day for everyone together.
 $perHour = (int) ($config['per_hour'] ?? 5);
 $perDay = (int) ($config['per_day'] ?? 200);
-$dir = rtrim(sys_get_temp_dir(), '/\\') . '/postmortem-reports-' . substr(sha1(__DIR__), 0, 12);
+$dir = rtrim(sys_get_temp_dir(), '/\\') . '/chessdebrief-reports-' . substr(sha1(__DIR__), 0, 12);
 if (!is_dir($dir)) {
     @mkdir($dir, 0700, true);
 }
@@ -112,7 +112,7 @@ if (!allow($dir . '/all', $perDay, 86400, $now)) {
 $siteHost = preg_replace('/[^a-z0-9.\-]/', '', preg_replace('/:\d+$/', '', $host) ?? '') ?: 'localhost';
 $from = !empty($config['from']) && filter_var($config['from'], FILTER_VALIDATE_EMAIL) ? $config['from'] : 'no-reply@' . $siteHost;
 $firstLine = function_exists('mb_substr') ? mb_substr($message, 0, 70) : substr($message, 0, 70);
-$subject = header_safe('[Postmortem] ' . $firstLine);
+$subject = header_safe('[ChessDebrief] ' . $firstLine);
 
 $body = $message . "\n\n"
     . "----------------------------------------\n"
@@ -122,11 +122,11 @@ $body = $message . "\n\n"
     . ($game !== '' ? "\n----------------------------------------\n" . $game . "\n" : '');
 
 $headers = [
-    'From: Postmortem <' . header_safe($from) . '>',
+    'From: ChessDebrief <' . header_safe($from) . '>',
     'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=UTF-8',
     'Content-Transfer-Encoding: 8bit',
-    'X-Mailer: Postmortem bug report',
+    'X-Mailer: ChessDebrief bug report',
 ];
 if ($email !== '') {
     $headers[] = 'Reply-To: ' . header_safe($email);

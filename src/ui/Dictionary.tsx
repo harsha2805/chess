@@ -1,5 +1,5 @@
 import { Chess } from 'chess.js';
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { MARK_MEANING, ORIGINS, TERMS, openingFamily } from '../lib/dictionary';
 import { MARK_LABEL, MARK_ORDER, MARK_SUFFIX } from '../lib/explain';
 import { Board } from './Board';
@@ -12,15 +12,19 @@ type Line = [eco: string, name: string, moves: string];
 interface Family {
   name: string;
   lines: Line[];
+  /** For search, worked out once: the folded family name, and each line's folded name and moves. */
+  folded: string;
+  keys: { name: string; moves: string }[];
   /** The shortest line, which shows how the family starts. */
   first: Line;
   ecos: string;
 }
 
-/** "1. e4 c5 2. Nf3" as "e4 c5 nf3", for matching typed moves. */
-const plainMoves = (s: string) => fold(s.replace(/\d+\.(\.\.)?/g, ' ').replace(/\s+/g, ' ').trim());
-
+/** "1. e4 c5 2. Nf3" as ["e4", "c5", "Nf3"]. */
 const sans = (moves: string) => moves.replace(/\d+\.(\.\.)?/g, ' ').split(/\s+/).filter(Boolean);
+
+/** "1. e4 c5 2. Nf3" as "e4 c5 nf3", for matching typed moves. */
+const plainMoves = (s: string) => fold(sans(s).join(' '));
 
 function buildFamilies(lines: Line[]): Family[] {
   const byName = new Map<string, Line[]>();
@@ -34,7 +38,14 @@ function buildFamilies(lines: Line[]): Family[] {
     .map(([name, list]) => {
       const ecos = [...new Set(list.map((l) => l[0]))].sort();
       const first = list.reduce((a, b) => (sans(b[2]).length < sans(a[2]).length ? b : a));
-      return { name, lines: list, first, ecos: ecos.length > 1 ? `${ecos[0]}–${ecos[ecos.length - 1]}` : ecos[0] };
+      return {
+        name,
+        lines: list,
+        folded: fold(name),
+        keys: list.map((l) => ({ name: fold(l[1]), moves: plainMoves(l[2]) })),
+        first,
+        ecos: ecos.length > 1 ? `${ecos[0]}–${ecos[ecos.length - 1]}` : ecos[0],
+      };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -99,8 +110,10 @@ export function Dictionary({ kind, id }: { kind?: string; id?: string }) {
     requestAnimationFrame(() => el.scrollIntoView({ block: pending.block }));
   });
 
-  const q = fold(query.trim());
-  const qMoves = plainMoves(query);
+  // Searching thousands of lines can lag a keystroke behind; typing itself never waits for it.
+  const search = useDeferredValue(query);
+  const q = fold(search.trim());
+  const qMoves = plainMoves(search);
   const marks = MARK_ORDER.filter((m) => !q || fold(MARK_LABEL[m]).includes(q) || fold(MARK_MEANING[m]).includes(q));
   const terms = TERMS.filter((t) => !q || fold(t.name).includes(q) || fold(t.text).includes(q));
 
@@ -109,8 +122,10 @@ export function Dictionary({ kind, id }: { kind?: string; id?: string }) {
     const hits: { family: Family; lines: Line[] }[] = [];
     let total = 0;
     for (const family of families) {
-      const familyHit = fold(family.name).includes(q);
-      const matched = family.lines.filter((l) => familyHit || fold(l[1]).includes(q) || l[0].toLowerCase() === q || plainMoves(l[2]).startsWith(qMoves));
+      const familyHit = family.folded.includes(q);
+      const matched = family.lines.filter(
+        (l, k) => familyHit || family.keys[k].name.includes(q) || l[0].toLowerCase() === q || family.keys[k].moves.startsWith(qMoves),
+      );
       if (matched.length) {
         hits.push({ family, lines: matched });
         total += matched.length;

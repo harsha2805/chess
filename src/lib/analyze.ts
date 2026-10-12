@@ -38,6 +38,20 @@ export class CancelledError extends Error {
 
 export const bookKey = (fen: string) => fen.split(' ').slice(0, 3).join(' ');
 
+/** Every position of the game: the start, then the position after each move. */
+export const positionsOf = (game: ParsedGame) => [game.startFen, ...game.moves.map((m) => m.fenAfter)];
+
+/**
+ * A key shared by positions that can share one evaluation: same pieces, side to move,
+ * castling rights and en passant square. A game that repeats moves comes back to the
+ * same positions, and they need not be searched again. Near the fifty-move rule the move
+ * counter changes what a position is worth, so those positions get no key.
+ */
+export function repeatKey(fen: string): string | null {
+  const fields = fen.split(' ');
+  return Number(fields[4]) >= 80 ? null : fields.slice(0, 4).join(' ');
+}
+
 /** Evaluates one position. Terminal positions are scored without the engine. */
 export async function evaluatePosition(fen: string, engine: Engine, opts: AnalyzeOptions): Promise<PositionEval> {
   const chess = new Chess(fen);
@@ -56,15 +70,19 @@ export async function evaluatePosition(fen: string, engine: Engine, opts: Analyz
 
 /** Runs the engine over every position of the game and builds the review. */
 export async function analyzeGame(game: ParsedGame, engine: Engine, opts: AnalyzeOptions): Promise<GameReview> {
-  const fens = [game.startFen, ...game.moves.map((m) => m.fenAfter)];
+  const fens = positionsOf(game);
   const evals: PositionEval[] = new Array(fens.length);
+  const seen = new Map<string, number>();
   await engine.newGame();
   // Last position first: what the engine learns about later positions stays in its
   // hash table and sharpens the earlier ones, so a combination found at move 20 is
   // already known when move 19 is judged.
   for (let i = fens.length - 1; i >= 0; i--) {
     if (opts.isCancelled?.()) throw new CancelledError();
-    evals[i] = await evaluatePosition(fens[i], engine, opts);
+    const key = repeatKey(fens[i]);
+    const twin = key ? seen.get(key) : undefined;
+    evals[i] = twin !== undefined ? evals[twin] : await evaluatePosition(fens[i], engine, opts);
+    if (key) seen.set(key, i);
     opts.onProgress?.(fens.length - i, fens.length);
   }
   if (opts.isCancelled?.()) throw new CancelledError();
@@ -86,10 +104,14 @@ function uciToMove(chess: Chess, uci: string): Move | null {
   }
 }
 
+/** How many moves of an engine line a review keeps, in SAN. */
+const LINE_LENGTH = 4;
+
 /** Converts an engine line to SAN, as far as it stays legal. */
 function pvToSan(fen: string, pv: string[], limit: number): string[] {
-  const chess = new Chess(fen);
   const out: string[] = [];
+  if (pv.length === 0) return out;
+  const chess = new Chess(fen);
   for (const uci of pv.slice(0, limit)) {
     const m = uciToMove(chess, uci);
     if (!m) break;
@@ -189,6 +211,15 @@ export function buildReview(game: ParsedGame, evals: PositionEval[], ctx: BuildC
     const uci = bestUciAt(j);
     if (!uci) return [];
     return evals[j].lines.find((l) => l.move === uci)?.pv ?? [uci];
+  };
+
+  /** The same engine line is often shown twice: as what follows one move and as the better choice at the next. */
+  const sanLines = new Map<string, string[]>();
+  const sanLine = (fen: string, pv: string[]): string[] => {
+    const key = `${fen}|${pv.slice(0, LINE_LENGTH).join(' ')}`;
+    let san = sanLines.get(key);
+    if (!san) sanLines.set(key, (san = pvToSan(fen, pv, LINE_LENGTH)));
+    return san;
   };
 
   game.moves.forEach((m, i) => {
@@ -363,6 +394,18 @@ export function buildReview(game: ParsedGame, evals: PositionEval[], ctx: BuildC
       lastClock[mover] = m.clock;
     }
 
+    // Converting engine lines to SAN is the slowest part of building a review, so only the
+    // moves the page shows are converted. When the move played was the engine's choice, its
+    // line is the move itself followed by the expected continuation.
+    const follow = sanLine(m.fenAfter, bestPvAt(i + 1));
+    let best: MoveReview['best'];
+    if (bestLine && bestLine.move === m.uci) {
+      best = { uci: m.uci, san: m.san, pv: [m.san, ...follow.slice(0, LINE_LENGTH - 1)] };
+    } else if (bestLine) {
+      const pv = sanLine(m.fenBefore, bestLine.pv);
+      best = { uci: bestLine.move, san: pv[0] ?? bestLine.move, pv };
+    }
+
     moves.push({
       ply: m.ply,
       color: mover,
@@ -374,11 +417,9 @@ export function buildReview(game: ParsedGame, evals: PositionEval[], ctx: BuildC
       winBefore,
       winAfter,
       evalAfter: scoreAfter,
-      best: bestLine
-        ? { uci: bestLine.move, san: pvToSan(m.fenBefore, bestLine.pv, 1)[0] ?? bestLine.move, pv: pvToSan(m.fenBefore, bestLine.pv, 6) }
-        : undefined,
+      best,
       reply,
-      follow: pvToSan(m.fenAfter, bestPvAt(i + 1), 4),
+      follow,
       tags,
       phase,
       clock: m.clock,

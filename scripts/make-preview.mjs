@@ -24,7 +24,7 @@ const jsFile = assets.find((f) => /^index-.*\.js$/.test(f));
 // The stylesheet moves into the page, so its font addresses must be relative to the page.
 const css = readFileSync(join(out, 'assets', cssFile), 'utf8').replace(/url\((["']?)\.\//g, 'url($1assets/');
 
-const page = `<title>Postmortem Chess Review</title>
+const page = `<title>ChessDebrief Chess Review</title>
 <style>${css}</style>
 <div id="root"></div>
 <script type="module" src="assets/${jsFile}"></script>

@@ -3,6 +3,29 @@ import type { Color, PieceType } from './types';
 
 export const PIECE_VALUE: Record<PieceType, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 };
 
+const other = (c: Color): Color => (c === 'w' ? 'b' : 'w');
+
+// chess.js builds a full Move object (SAN, FEN before and after) for every move it lists
+// in verbose form, so listing all moves is far too slow to call inside an exchange. These
+// helpers ask only for the attackers of one square, and play a single move to test it.
+
+/** Plays the least valuable legal capture on `square`, queening when a pawn promotes. Null when there is none. */
+function captureWithLeast(chess: Chess, square: Square): Move | null {
+  const attackers = chess
+    .attackers(square, chess.turn())
+    .map((from) => ({ from, value: PIECE_VALUE[chess.get(from)!.type as PieceType] }))
+    .sort((a, b) => a.value - b.value);
+  for (const { from } of attackers) {
+    try {
+      // Illegal when the attacker is pinned to its king, or the king would walk into check.
+      return chess.move({ from, to: square, promotion: 'q' });
+    } catch {
+      // Try the next attacker.
+    }
+  }
+  return null;
+}
+
 /**
  * Static exchange evaluation: the material the side to move wins by starting a
  * capture sequence on `square`, assuming both sides capture with their least
@@ -10,16 +33,11 @@ export const PIECE_VALUE: Record<PieceType, number> = { p: 1, n: 3, b: 3, r: 5, 
  * so pins against the king are respected.
  */
 export function see(chess: Chess, square: Square): number {
-  const captures = (chess.moves({ verbose: true }) as Move[]).filter((m) => m.to === square && m.captured);
-  if (captures.length === 0) return 0;
-  let pick = captures[0];
-  for (const m of captures) {
-    const better = PIECE_VALUE[m.piece as PieceType] < PIECE_VALUE[pick.piece as PieceType];
-    const samePieceQueening = m.from === pick.from && m.promotion === 'q';
-    if (better || samePieceQueening) pick = m;
-  }
+  const target = chess.get(square);
+  if (!target || target.color === chess.turn()) return 0;
+  const pick = captureWithLeast(chess, square);
+  if (!pick) return 0;
   const won = PIECE_VALUE[pick.captured as PieceType] + (pick.promotion ? PIECE_VALUE[pick.promotion as PieceType] - 1 : 0);
-  chess.move(pick);
   const gain = won - see(chess, square);
   chess.undo();
   return Math.max(0, gain);
@@ -33,14 +51,15 @@ export interface Threat {
 
 /** Pieces of the side that just moved which the side to move can capture with a material gain. */
 export function hangingPieces(chess: Chess): Threat[] {
-  const targets = new Map<Square, PieceType>();
-  for (const m of chess.moves({ verbose: true }) as Move[]) {
-    if (m.captured && !m.isEnPassant()) targets.set(m.to, m.captured as PieceType);
-  }
+  const us = chess.turn();
   const out: Threat[] = [];
-  for (const [square, piece] of targets) {
-    const gain = see(chess, square);
-    if (gain > 0) out.push({ square, piece, gain });
+  for (const row of chess.board()) {
+    for (const cell of row) {
+      if (!cell || cell.color === us || cell.type === 'k') continue;
+      if (!chess.isAttacked(cell.square, us)) continue;
+      const gain = see(chess, cell.square);
+      if (gain > 0) out.push({ square: cell.square, piece: cell.type as PieceType, gain });
+    }
   }
   return out.sort((a, b) => b.gain - a.gain);
 }
@@ -55,7 +74,7 @@ export function forkTargets(chess: Chess, square: Square): PieceType[] {
   const attacker = chess.get(square);
   if (!attacker) return [];
   const us: Color = attacker.color;
-  const them: Color = us === 'w' ? 'b' : 'w';
+  const them = other(us);
   if (chess.turn() !== them) return [];
   const targets: PieceType[] = [];
   for (const row of chess.board()) {
@@ -64,7 +83,7 @@ export function forkTargets(chess: Chess, square: Square): PieceType[] {
       if (!chess.attackers(cell.square, us).includes(square)) continue;
       const type = cell.type as PieceType;
       const worthMore = PIECE_VALUE[type] > PIECE_VALUE[attacker.type as PieceType];
-      const loose = type !== 'p' && chess.attackers(cell.square, them).length === 0;
+      const loose = type !== 'p' && !chess.isAttacked(cell.square, them);
       if (type === 'k' || worthMore || loose) targets.push(type);
     }
   }

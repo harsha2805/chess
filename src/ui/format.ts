@@ -1,5 +1,5 @@
-import { colorOf } from '../lib/insights';
-import type { Color, GameRecord } from '../lib/types';
+import { colorOf, type Outcome } from '../lib/insights';
+import type { Color, GameRecord, TimeClass } from '../lib/types';
 
 /** Folds case and accents for searching, so "grunfeld" finds "Grünfeld". */
 export const fold = (s: string) =>
@@ -9,21 +9,42 @@ export const fold = (s: string) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[’']/g, "'");
 
+export const TIME_CLASS_LABEL: Record<TimeClass, string> = {
+  bullet: 'Bullet',
+  blitz: 'Blitz',
+  rapid: 'Rapid',
+  classical: 'Classical',
+  daily: 'Daily',
+  unknown: 'No time control',
+};
+
+/** How a result reads from one player's side: a one-letter chip, and the verb. */
+export const OUTCOME_LABEL: Record<Outcome, { letter: string; verb: string }> = {
+  win: { letter: 'W', verb: 'Won' },
+  draw: { letter: 'D', verb: 'Drew' },
+  loss: { letter: 'L', verb: 'Lost' },
+};
+
 export function timeLabel(game: GameRecord): string {
   const tc = game.timeControl;
   if (game.timeClass === 'daily') return 'Daily';
-  if (!tc) return game.timeClass === 'unknown' ? '' : game.timeClass[0].toUpperCase() + game.timeClass.slice(1);
+  if (!tc) return game.timeClass === 'unknown' ? '' : TIME_CLASS_LABEL[game.timeClass];
   const base = tc.base % 60 === 0 ? `${tc.base / 60}` : (tc.base / 60).toFixed(1);
   return tc.inc ? `${base}+${tc.inc}` : `${base} min`;
 }
 
+// Building a date format is slow, and every row of the games list needs one.
+const dateFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
 export function dateLabel(ms: number): string {
-  return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return dateFormat.format(ms);
 }
 
+const TAG_PATTERN = { Date: /\[Date "([^"]*)"\]/, Site: /\[Site "([^"]*)"\]/ };
+
 /** The PGN tag value, or undefined when it is missing or unknown ("?"). */
-function pgnTag(game: GameRecord, tag: string): string | undefined {
-  const m = game.pgn.match(new RegExp(String.raw`\[${tag} "([^"]*)"\]`));
+function pgnTag(game: GameRecord, tag: keyof typeof TAG_PATTERN): string | undefined {
+  const m = TAG_PATTERN[tag].exec(game.pgn);
   const value = m?.[1].trim();
   return value && !/^\?+$/.test(value) ? value : undefined;
 }

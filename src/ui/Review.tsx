@@ -1,20 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ERROR_MARKS, MARK_LABEL, MARK_ORDER, MARK_SUFFIX, clockText, explain, moveLabel, sideName } from '../lib/explain';
+import { MARK_LABEL, MARK_ORDER, MARK_SUFFIX, NOTABLE_MARKS, PHASE_LABEL, clockText, explain, moveLabel, moveNumber, sideName } from '../lib/explain';
 import { resolvePlayer } from '../lib/insights';
 import { parsePgn } from '../lib/pgn';
 import { formatScore } from '../lib/score';
-import { AUTOPLAY_SPEEDS, DEPTHS, canDeepen, isReviewed, requestReview, resetEngine, reviewSetting, updateSettings, useStore } from '../lib/store';
-import type { Color, GameRecord, GameReview, Mark, MoveReview, ParsedGame, Phase } from '../lib/types';
+import { AUTOPLAY_SPEEDS, DEPTHS, canDeepen, getState, isReviewed, requestReview, resetEngine, reviewSetting, updateSettings, useStore } from '../lib/store';
+import type { Color, GameRecord, GameReview, Mark, MoveReview, ParsedGame } from '../lib/types';
 import { Board, EvalBar } from './Board';
 import { EvalGraph } from './EvalGraph';
 import { MarkTag } from './MarkTag';
 import { gameDateLabel, gameSite, perspective, resultMark, resultText, timeLabel } from './format';
 import { IconExternal, IconFirst, IconFlip, IconLast, IconNext, IconPause, IconPlay, IconPrev } from './icons';
 import { href } from './router';
-
-/** Marks that get a bullet in the station list; the rest are plain stops. */
-const BULLETED: Mark[] = ['brilliant', 'great', 'inaccuracy', 'miss', 'mistake', 'blunder'];
-const PHASE_NAME: Record<Phase, string> = { opening: 'Opening', middlegame: 'Middlegame', endgame: 'Endgame' };
 
 export function Review({ id, startPly }: { id: string; startPly?: number }) {
   const ready = useStore((s) => s.ready);
@@ -35,8 +31,6 @@ export function Review({ id, startPly }: { id: string; startPly?: number }) {
 }
 
 function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number }) {
-  const stored = useStore((s) => s.settings.player);
-  const allGames = useStore((s) => s.games);
   const parsed = useMemo<ParsedGame | null>(() => {
     try {
       return parsePgn(game.pgn);
@@ -47,7 +41,11 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
   const review = isReviewed(game) ? game.review! : null;
   const total = parsed?.moves.length ?? 0;
   const [ply, setPlyRaw] = useState(() => Math.max(0, Math.min(total, startPly ?? 0)));
-  const [flipped, setFlipped] = useState(() => perspective(game, resolvePlayer(allGames, stored)) === 'b');
+  // Read once: following every change to the games list would draw the whole page again each time a review finishes.
+  const [flipped, setFlipped] = useState(() => {
+    const { games, settings } = getState();
+    return perspective(game, resolvePlayer(games, settings.player)) === 'b';
+  });
   const [showBest, setShowBest] = useState(false);
   const [playing, setPlaying] = useState(false);
   const speed = useStore((s) => s.settings.autoplay);
@@ -372,13 +370,7 @@ function Waiting({ game }: { game: GameRecord }) {
 
 /** Formats an engine line as running notation: "14.Rd1 Qe6 15.Bxd7+". */
 function lineText(firstPly: number, sans: string[]): string {
-  return sans
-    .map((san, k) => {
-      const ply = firstPly + k;
-      if (ply % 2 === 1) return `${Math.ceil(ply / 2)}.${san}`;
-      return k === 0 ? `${Math.ceil(ply / 2)}…${san}` : san;
-    })
-    .join(' ');
+  return sans.map((san, k) => (k === 0 || (firstPly + k) % 2 === 1 ? `${moveNumber(firstPly + k)}${san}` : san)).join(' ');
 }
 
 interface NoteProps {
@@ -430,7 +422,7 @@ function Note({ game, review, move, showBest, bestDiffers, onToggleBest }: NoteP
             <span className="sep" aria-hidden="true" />
             <span className="visually-hidden">, </span>
             <a href={href('dictionary', 'term', 'phases')} title="How the phases are decided">
-              {PHASE_NAME[move.phase]}
+              {PHASE_LABEL[move.phase]}
             </a>
           </span>
         </div>
@@ -521,7 +513,7 @@ function Notation({ parsed, review, ply, onSelect, result }: NotationProps) {
         aria-label={`${moveLabel(m)}${r ? `, ${MARK_LABEL[r.mark]}` : ''}`}
         onClick={() => onSelect(m.ply)}
       >
-        {r && BULLETED.includes(r.mark) && <MarkTag mark={r.mark} labelled />}
+        {r && NOTABLE_MARKS.includes(r.mark) && <MarkTag mark={r.mark} labelled />}
         {m.san}
       </button>
     );
@@ -559,10 +551,9 @@ function Summary({ game, review, ply, onSelect }: { game: GameRecord; review: Ga
   const cell = (color: Color, mark: Mark) => {
     const n = counts[color][mark] ?? 0;
     if (n === 0) return <td className="zero">0</td>;
-    const linked = ERROR_MARKS.includes(mark) || mark === 'brilliant' || mark === 'great';
     return (
       <td>
-        {linked ? (
+        {NOTABLE_MARKS.includes(mark) ? (
           <button type="button" onClick={() => jump(color, mark)} title={`Go to ${sideName(color)}'s next ${MARK_LABEL[mark].toLowerCase()}`}>
             {n}
           </button>

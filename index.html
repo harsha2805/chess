@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Postmortem: free chess game review</title>
+    <title>ChessDebrief: free chess game review</title>
     <meta name="description" content="Free, unlimited review of your chess.com and Lichess games. Stockfish marks every move in your browser and shows the patterns across your games." />
     <meta name="theme-color" content="#0d1830" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
@@ -13,13 +13,13 @@
     </style>
     <script>
       try {
-        if (localStorage.getItem('postmortem-theme') === 'day') document.documentElement.dataset.theme = 'day';
+        if (localStorage.getItem('chessdebrief-theme') === 'day') document.documentElement.dataset.theme = 'day';
       } catch (e) {}
     </script>
   </head>
   <body>
     <div id="root"></div>
-    <noscript>Postmortem reviews chess games in your browser and needs JavaScript to run.</noscript>
+    <noscript>ChessDebrief reviews chess games in your browser and needs JavaScript to run.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

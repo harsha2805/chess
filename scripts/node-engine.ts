@@ -32,6 +32,8 @@ export function createNodeEngine(): UciEngine {
     }
   });
   child.on('error', (e) => transport.onError?.(e));
+  // Writing to an engine that has just been closed fails with EPIPE; nothing is waiting for it.
+  child.stdin.on('error', () => undefined);
   return new UciEngine(transport);
 }
 

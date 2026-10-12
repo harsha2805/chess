@@ -31,7 +31,7 @@ export function moveAccuracy(loss: number): number {
   return Math.max(0, Math.min(100, raw));
 }
 
-function mean(xs: number[]): number {
+export function mean(xs: number[]): number {
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
 }
 

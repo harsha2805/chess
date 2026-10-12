@@ -1,4 +1,4 @@
-import type { Color, GameRecord, Mark, MoveReview, PieceType, Tag } from './types';
+import type { Color, GameRecord, Mark, MoveReview, Phase, PieceType, Tag } from './types';
 
 export const MARK_ORDER: Mark[] = [
   'brilliant',
@@ -40,6 +40,10 @@ export const MARK_SUFFIX: Partial<Record<Mark, string>> = {
 
 export const ERROR_MARKS: Mark[] = ['inaccuracy', 'miss', 'mistake', 'blunder'];
 export const SERIOUS_MARKS: Mark[] = ['miss', 'mistake', 'blunder'];
+/** Marks worth finding again: they get a bullet in the move list, a stop on the line map, and a link in the summary. */
+export const NOTABLE_MARKS: Mark[] = ['brilliant', 'great', ...ERROR_MARKS];
+
+export const PHASE_LABEL: Record<Phase, string> = { opening: 'Opening', middlegame: 'Middlegame', endgame: 'Endgame' };
 
 const PIECE_NAME: Record<PieceType, string> = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
 

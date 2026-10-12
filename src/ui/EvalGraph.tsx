@@ -1,12 +1,9 @@
-import { useMemo, useState, type PointerEvent } from 'react';
-import { ERROR_MARKS, MARK_SUFFIX, moveLabel } from '../lib/explain';
+import { memo, useMemo, useState, type PointerEvent } from 'react';
+import { MARK_SUFFIX, NOTABLE_MARKS, PHASE_LABEL, moveLabel } from '../lib/explain';
 import { formatScore, whiteWin } from '../lib/score';
-import type { GameReview, Mark, Phase } from '../lib/types';
+import type { MoveReview, Phase, Score } from '../lib/types';
 import { useWidth } from './hooks';
 
-/** Marks that get an interchange on the line; every other move is a plain station tick. */
-const INTERCHANGE: Mark[] = ['brilliant', 'great', ...ERROR_MARKS];
-const ZONE_NAME: Record<Phase, string> = { opening: 'OPENING', middlegame: 'MIDDLEGAME', endgame: 'ENDGAME' };
 const H = 168;
 const TOP = 26;
 const BOTTOM = 12;
@@ -33,25 +30,22 @@ function octilinear(points: [number, number][]): string {
  * Higher means better for White. Phases are fare zones, marked moves are interchanges,
  * and the ring is the move on the board. Click or drag along it to move through the game.
  */
-export function EvalGraph({ review, ply, onSelect }: { review: GameReview; ply: number; onSelect: (ply: number) => void }) {
+/** What the line map draws: the score at the start, then each move's mark, phase and score after it. A saved review is one. */
+export interface LineData {
+  startEval: Score;
+  moves: Pick<MoveReview, 'ply' | 'san' | 'mark' | 'phase' | 'evalAfter'>[];
+}
+
+export function EvalGraph({ review, ply, onSelect }: { review: LineData; ply: number; onSelect: (ply: number) => void }) {
   const [ref, width] = useWidth<HTMLDivElement>(360);
   const [hover, setHover] = useState<number | null>(null);
   const n = review.moves.length;
 
-  const wins = useMemo(() => [whiteWin(review.startEval), ...review.moves.map((m) => whiteWin(m.evalAfter))], [review]);
-  const x = (i: number) => (n === 0 ? PAD : PAD + (i / n) * (width - PAD * 2));
-  const y = (win: number) => TOP + (1 - win / 100) * (H - TOP - BOTTOM);
-  const points = wins.map((w, i) => [x(i), y(w)] as [number, number]);
-
-  const zones = useMemo(() => {
-    const out: { phase: Phase; from: number; to: number }[] = [];
-    review.moves.forEach((m, i) => {
-      const last = out[out.length - 1];
-      if (last && last.phase === m.phase) last.to = i + 1;
-      else out.push({ phase: m.phase, from: last ? last.to : 0, to: i + 1 });
-    });
-    return out;
-  }, [review]);
+  const x = (i: number) => xAt(i, n, width);
+  const points = useMemo(
+    () => [review.startEval, ...review.moves.map((m) => m.evalAfter)].map((score, i) => [xAt(i, review.moves.length, width), y(whiteWin(score))] as [number, number]),
+    [review, width],
+  );
 
   const plyAt = (e: PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -94,26 +88,7 @@ export function EvalGraph({ review, ply, onSelect }: { review: GameReview; ply: 
         onPointerCancel={() => setHover(null)}
       >
         <svg height={H} viewBox={`0 0 ${width} ${H}`}>
-          {zones.map((z, k) => (
-            <g key={z.from}>
-              {k > 0 && <line x1={x(z.from)} x2={x(z.from)} y1="0" y2={H} stroke="var(--seam)" strokeDasharray="3 4" />}
-              {x(z.to) - x(z.from) > ZONE_NAME[z.phase].length * 7.6 + 12 && (
-                <text className="zone-label" x={x(z.from) + 6} y="12">
-                  {ZONE_NAME[z.phase]}
-                </text>
-              )}
-            </g>
-          ))}
-          <line x1="0" x2={width} y1={y(50)} y2={y(50)} stroke="var(--band)" strokeWidth="1" strokeDasharray="2 4" />
-          <path d={octilinear(points)} fill="none" stroke="var(--route-under)" strokeWidth="11" strokeLinejoin="round" strokeLinecap="round" />
-          <path d={octilinear(points)} fill="none" stroke="var(--route)" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
-          {review.moves.map((m, i) => {
-            const [cx, cy] = points[i + 1];
-            if (INTERCHANGE.includes(m.mark)) {
-              return <circle key={m.ply} cx={cx} cy={cy} r="6.5" fill={`var(--m-${m.mark})`} stroke="var(--route)" strokeWidth="2.5" />;
-            }
-            return null;
-          })}
+          <Route review={review} points={points} width={width} />
           {hover !== null && hover !== ply && <circle cx={x(hover)} cy={points[hover][1]} r="8" fill="none" stroke="var(--focus)" strokeWidth="2.5" />}
           <g className="here" style={{ transform: `translate(${here[0]}px, ${here[1]}px)` }}>
             <circle r="11" fill="var(--sign)" stroke="var(--sign-ink)" strokeWidth="4" />
@@ -142,3 +117,52 @@ export function EvalGraph({ review, ply, onSelect }: { review: GameReview; ply: 
     </div>
   );
 }
+
+/** Where position `i` of `n` moves sits across the map. */
+const xAt = (i: number, n: number, width: number) => (n === 0 ? PAD : PAD + (i / n) * (width - PAD * 2));
+const y = (win: number) => TOP + (1 - win / 100) * (H - TOP - BOTTOM);
+
+/**
+ * The parts of the map that do not move: phase zones, the even line, the route and its
+ * interchanges. Memoised, so hovering or dragging along the line only redraws the ring and
+ * the labels.
+ */
+const Route = memo(function Route({ review, points, width }: { review: LineData; points: [number, number][]; width: number }) {
+  const zones = useMemo(() => {
+    const out: { phase: Phase; from: number; to: number }[] = [];
+    review.moves.forEach((m, i) => {
+      const last = out[out.length - 1];
+      if (last && last.phase === m.phase) last.to = i + 1;
+      else out.push({ phase: m.phase, from: last ? last.to : 0, to: i + 1 });
+    });
+    return out;
+  }, [review]);
+  const route = octilinear(points);
+  return (
+    <>
+      {zones.map((z, k) => {
+        const name = PHASE_LABEL[z.phase].toUpperCase();
+        const [x0] = points[z.from];
+        const [x1] = points[z.to];
+        return (
+          <g key={z.from}>
+            {k > 0 && <line x1={x0} x2={x0} y1="0" y2={H} stroke="var(--seam)" strokeDasharray="3 4" />}
+            {x1 - x0 > name.length * 7.6 + 12 && (
+              <text className="zone-label" x={x0 + 6} y="12">
+                {name}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      <line x1="0" x2={width} y1={y(50)} y2={y(50)} stroke="var(--band)" strokeWidth="1" strokeDasharray="2 4" />
+      <path d={route} fill="none" stroke="var(--route-under)" strokeWidth="11" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={route} fill="none" stroke="var(--route)" strokeWidth="6" strokeLinejoin="round" strokeLinecap="round" />
+      {review.moves.map((m, i) =>
+        NOTABLE_MARKS.includes(m.mark) ? (
+          <circle key={m.ply} cx={points[i + 1][0]} cy={points[i + 1][1]} r="6.5" fill={`var(--m-${m.mark})`} stroke="var(--route)" strokeWidth="2.5" />
+        ) : null,
+      )}
+    </>
+  );
+});

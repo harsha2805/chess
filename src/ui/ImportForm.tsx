@@ -6,11 +6,11 @@ import { navigate } from './router';
 
 const PLATFORM_NAME: Record<Platform, string> = { chesscom: 'Chess.com', lichess: 'Lichess' };
 
-/** Opens the built-in sample game, adding it on first use. */
-export async function openSample() {
+/** Opens the built-in sample game, adding it on first use, at move `ply` when given. */
+export async function openSample(ply?: number) {
   const { records } = recordsFromPgn(SAMPLE_PGN, 'sample');
   await addGames(records);
-  navigate('game', records[0].id);
+  navigate('game', records[0].id, ...(ply ? [ply] : []));
 }
 
 /** Username import and PGN paste. `compact` is the one-row version shown above the game list. */

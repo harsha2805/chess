@@ -1,4 +1,4 @@
-# Postmortem
+# ChessDebrief
 
 Free review of chess games, in the browser. It gets a player's recent games from
 chess.com or Lichess (or takes a pasted PGN), runs Stockfish over every position,
@@ -8,7 +8,7 @@ There is no server-side engine and no account. Stockfish runs as WebAssembly in 
 Web Worker, games are stored in the browser's IndexedDB, and the site itself is
 static files. The only server code is one small PHP file that emails bug reports.
 
-"Postmortem" is a working name. It lives in one place, `src/config.ts`.
+The name lives in one place, `src/config.ts`.
 
 ## What it does
 
@@ -101,7 +101,7 @@ errors and clocks) used only for testing.
 - Opening names from [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings), CC0.
 - Literata and Hanken Grotesk typefaces, SIL Open Font License.
 
-Postmortem is free software under the GNU General Public License, version 3 or
+ChessDebrief is free software under the GNU General Public License, version 3 or
 later (see `LICENSE`). Because the site ships Stockfish and the piece set, anyone
 who hosts it must also make the source available.
 

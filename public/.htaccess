@@ -1,4 +1,4 @@
-# Postmortem on Apache or LiteSpeed shared hosting (DirectAdmin, cPanel).
+# ChessDebrief on Apache or LiteSpeed shared hosting (DirectAdmin, cPanel).
 # The site is static files plus one small PHP file for bug reports.
 
 AddType application/wasm .wasm

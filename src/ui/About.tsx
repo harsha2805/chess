@@ -64,9 +64,9 @@ export function About() {
         review the lighter ones again. The new review replaces the old one when it finishes.
       </p>
       <p>
-        On a computer with processor cores to spare, up to three games are reviewed at once, each by its own copy of Stockfish, so a batch
-        finishes sooner. Each game is still judged exactly as it would be alone. Phones and tablets review one game at a time, to save the
-        battery.
+        On a computer with processor cores to spare, up to three copies of Stockfish run at once and share the work: each takes its own
+        stretch of the game, so a single game finishes sooner, and so does a batch. The game you open always comes first. Phones and tablets
+        use one copy, to save the battery.
       </p>
 
       <h2>What it cannot tell you</h2>

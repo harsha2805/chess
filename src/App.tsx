@@ -1,14 +1,16 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { APP_NAME, REPO_URL } from './config';
-import { About } from './ui/About';
-import { Dictionary } from './ui/Dictionary';
 import { Home } from './ui/Home';
-import { Insights } from './ui/Insights';
-import { Report } from './ui/Report';
 import { Review } from './ui/Review';
 import { IconMoon, IconSun } from './ui/icons';
 import { href, useRoute } from './ui/router';
 import { useTheme } from './ui/theme';
+
+// The games list and the review are where visits start; the other pages load when first opened.
+const Insights = lazy(() => import('./ui/Insights').then((m) => ({ default: m.Insights })));
+const Dictionary = lazy(() => import('./ui/Dictionary').then((m) => ({ default: m.Dictionary })));
+const About = lazy(() => import('./ui/About').then((m) => ({ default: m.About })));
+const Report = lazy(() => import('./ui/Report').then((m) => ({ default: m.Report })));
 
 export function App() {
   const route = useRoute();
@@ -79,7 +81,9 @@ export function App() {
           </button>
         </div>
       </header>
-      <main className="page">{page}</main>
+      <main className="page">
+        <Suspense fallback={<p className="muted">Opening the page…</p>}>{page}</Suspense>
+      </main>
       <footer className="footer">
         <div className="footer-inner">
           <p>Runs in your browser. Your games are not uploaded.</p>
