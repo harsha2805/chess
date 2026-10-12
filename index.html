@@ -7,6 +7,33 @@
     <meta name="description" content="Free, unlimited review of your chess.com and Lichess games. Stockfish marks every move in your browser and shows the patterns across your games." />
     <meta name="theme-color" content="#0d1830" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- The live address. It also appears in public/robots.txt and public/sitemap.xml. -->
+    <link rel="canonical" href="https://chessdebrief.holostack.in/" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ChessDebrief" />
+    <meta property="og:title" content="ChessDebrief: free chess game review" />
+    <meta property="og:description" content="Stockfish reviews your chess.com and Lichess games move by move, and shows what keeps going wrong from one game to the next. Free, with no daily limit." />
+    <meta property="og:url" content="https://chessdebrief.holostack.in/" />
+    <meta property="og:image" content="https://chessdebrief.holostack.in/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ChessDebrief: a reviewed game on a chess board, with the line of winning chances beside it." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "ChessDebrief",
+        "url": "https://chessdebrief.holostack.in/",
+        "description": "Free, unlimited review of chess.com and Lichess games. Stockfish marks every move in the browser and shows the patterns across your games.",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript and WebAssembly",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
     <style>
       html { background: #0d1830; color: #f3efe6; }
       html[data-theme='day'] { background: #f3efe6; color: #0d1830; }
@@ -19,7 +46,16 @@
   </head>
   <body>
     <div id="root"></div>
-    <noscript>ChessDebrief reviews chess games in your browser and needs JavaScript to run.</noscript>
+    <noscript>
+      <h1>ChessDebrief: free chess game review</h1>
+      <p>
+        ChessDebrief gets your recent games from chess.com or Lichess, or takes a pasted PGN, and runs Stockfish over every position in
+        your browser. Each move is marked from brilliant to blunder, with the reason in plain words, and the Insights page shows what keeps
+        going wrong across your games: accuracy by phase, errors against the clock, the most common error patterns, and results by opening.
+        It is free, with no daily limit, and your games are not uploaded.
+      </p>
+      <p>ChessDebrief needs JavaScript to run.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

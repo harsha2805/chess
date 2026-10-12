@@ -48,6 +48,15 @@ export interface TrendPoint {
   color: Color;
 }
 
+export interface RatingStat {
+  timeClass: TimeClass;
+  /** The rating in the most recent game. */
+  latest: number;
+  /** From the first game to the most recent one. */
+  change: number;
+  games: number;
+}
+
 export interface Insights {
   player: string;
   games: number;
@@ -64,6 +73,8 @@ export interface Insights {
   errorsPerGame: number;
   motifs: MotifStat[];
   openings: OpeningStat[];
+  /** The player's rating in each time control, most played first. Every game counts, reviewed or not. */
+  ratings: RatingStat[];
   takeaways: string[];
 }
 
@@ -150,6 +161,14 @@ const CLOCK_BUCKETS = [
   { key: 'scramble', label: 'Under 10% left', min: -1 },
 ];
 
+/**
+ * True while the game is still undecided for the mover. Once a game is won or lost, even a
+ * poor move hardly changes the winning chances, so it scores as accurate. Half the moves of a
+ * typical endgame are played like that, which made every player look worst in the opening.
+ * Comparing phases on undecided positions only removes that bias.
+ */
+const stillOpen = (winBefore: number) => winBefore > 10 && winBefore < 90;
+
 const MOTIF_KINDS = Object.keys(MOTIF_LABEL) as Tag['kind'][];
 const HUNG_PAWN_LABEL = 'Left a pawn to be taken';
 const PHASES: Phase[] = ['opening', 'middlegame', 'endgame'];
@@ -158,6 +177,7 @@ const PHASES: Phase[] = ['opening', 'middlegame', 'endgame'];
 export function buildInsights(allGames: GameRecord[], player: string): Insights {
   const mine = allGames.filter((g) => colorOf(g, player));
   const reviewed = mine.filter(isReviewed).sort((a, b) => a.playedAt - b.playedAt);
+  const ratings = ratingsOf(mine, player);
 
   const record = { wins: 0, draws: 0, losses: 0 };
   const byColorAcc: Record<Color, number[]> = { w: [], b: [] };
@@ -195,7 +215,7 @@ export function buildInsights(allGames: GameRecord[], player: string): Insights 
       if (m.color !== color) continue;
       moves++;
       marks[m.mark]++;
-      if (m.mark !== 'book') phaseAcc[m.phase].push(m.accuracy);
+      if (m.mark !== 'book' && stillOpen(m.winBefore)) phaseAcc[m.phase].push(m.accuracy);
       const serious = SERIOUS_MARKS.includes(m.mark);
       if (ERROR_MARKS.includes(m.mark)) errors++;
 
@@ -321,6 +341,22 @@ export function buildInsights(allGames: GameRecord[], player: string): Insights 
     errorsPerGame: reviewed.length ? errors / reviewed.length : 0,
     motifs: motifList,
     openings: openingList,
+    ratings,
     takeaways,
   };
+}
+
+/** The player's rating over time in each time control, from the ratings the games record. */
+function ratingsOf(games: GameRecord[], player: string): RatingStat[] {
+  const byClass = new Map<TimeClass, number[]>();
+  for (const g of [...games].sort((a, b) => a.playedAt - b.playedAt)) {
+    const rating = (colorOf(g, player) === 'w' ? g.white : g.black).rating;
+    if (!rating) continue;
+    const list = byClass.get(g.timeClass) ?? [];
+    list.push(rating);
+    byClass.set(g.timeClass, list);
+  }
+  return [...byClass.entries()]
+    .map(([timeClass, list]) => ({ timeClass, latest: list[list.length - 1], change: list[list.length - 1] - list[0], games: list.length }))
+    .sort((a, b) => b.games - a.games);
 }

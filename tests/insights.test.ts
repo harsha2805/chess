@@ -94,3 +94,29 @@ describe('the errors behind the numbers', () => {
     expect(pawns?.label).toBe('Left a pawn to be taken');
   });
 });
+
+describe('accuracy by phase', () => {
+  it('leaves out moves made once the game was already won or lost', () => {
+    const decided = { ...move(3, 'good'), accuracy: 100, winBefore: 97 };
+    const insights = buildInsights([reviewed([{ ...move(1, 'blunder'), winBefore: 55 }, decided])], 'me');
+    const middlegame = insights.byPhase.find((p) => p.phase === 'middlegame')!;
+    expect(middlegame.moves).toBe(1);
+    expect(middlegame.accuracy).toBe(20);
+  });
+});
+
+describe('ratings', () => {
+  it('follows the rating in each time control, most played first', () => {
+    const rated = (playedAt: number, rating: number, timeClass: GameRecord['timeClass']): GameRecord => ({
+      ...game('me', 'them'),
+      white: { name: 'me', rating },
+      playedAt,
+      timeClass,
+    });
+    const insights = buildInsights([rated(3, 1530, 'blitz'), rated(1, 1500, 'blitz'), rated(2, 1490, 'blitz'), rated(1, 1300, 'rapid')], 'me');
+    expect(insights.ratings).toEqual([
+      { timeClass: 'blitz', latest: 1530, change: 30, games: 3 },
+      { timeClass: 'rapid', latest: 1300, change: 0, games: 1 },
+    ]);
+  });
+});

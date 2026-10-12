@@ -1,0 +1,6 @@
+# ChessDebrief: the whole site may be crawled, except the bug report endpoint.
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://chessdebrief.holostack.in/sitemap.xml

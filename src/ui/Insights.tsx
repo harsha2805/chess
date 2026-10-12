@@ -1,10 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { MARK_LABEL, MARK_ORDER, PHASE_LABEL, moveLabel } from '../lib/explain';
-import { buildInsights, colorOf, extremes, insightPlayers, outcomeFor, resolvePlayer, type Insights as InsightsData, type TrendPoint } from '../lib/insights';
+import { buildInsights, colorOf, extremes, insightPlayers, outcomeFor, resolvePlayer, type Insights as InsightsData, type RatingStat, type TrendPoint } from '../lib/insights';
 import { isReviewed, requestReview, updateSettings, useStore } from '../lib/store';
 import type { GameRecord } from '../lib/types';
 import { MarkTag } from './MarkTag';
-import { OUTCOME_LABEL, dateLabel, gameDateLabel, perspective } from './format';
+import { OUTCOME_LABEL, TIME_CLASS_LABEL, dateLabel, gameDateLabel, perspective } from './format';
 import { useWidth } from './hooks';
 import { IconChevron } from './icons';
 import { href, navigate } from './router';
@@ -41,14 +41,20 @@ export function Insights() {
   return (
     <>
       <div className="ins-head">
-        <h1>Insights for</h1>
-        <select className="select" value={player} onChange={(e) => updateSettings({ player: e.target.value })} aria-label="Player">
-          {options.map((n) => (
-            <option key={n.name} value={n.name}>
-              {n.name}
-            </option>
-          ))}
-        </select>
+        {options.length > 1 ? (
+          <>
+            <h1>Insights for</h1>
+            <select className="select" value={player} onChange={(e) => updateSettings({ player: e.target.value })} aria-label="Player">
+              {options.map((n) => (
+                <option key={n.name} value={n.name}>
+                  {n.name}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : (
+          <h1>Insights for {player}</h1>
+        )}
       </div>
       <div className="ins-sub">
         <span>
@@ -124,6 +130,7 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
           </div>
           <div className="note-line">{record.draws === 1 ? '1 draw' : `${record.draws} draws`}</div>
         </div>
+        {data.ratings.length > 0 && <RatingFigure ratings={data.ratings} />}
         <div className="figure">
           <div className="label">Errors per game</div>
           <div className="value">{data.errorsPerGame.toFixed(1)}</div>
@@ -154,7 +161,8 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
         <section className="panel">
           <h2>Accuracy by phase</h2>
           <p className="hint">
-            Average accuracy of your moves in each part of the game. Book moves are left out. The light bar is your weakest phase, when one
+            Average accuracy of your moves in each part of the game, while it was still undecided. Book moves and moves made once the game
+            was already won or lost are left out. The light bar is your weakest phase, when one
             is clearly behind the others.
           </p>
           <Bars
@@ -262,6 +270,24 @@ function Report({ data, games, player }: { data: InsightsData; games: GameRecord
         )}
       </div>
     </>
+  );
+}
+
+/** "+35", "−12", "±0". */
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '±0');
+
+/** The rating in the time control played most, how it moved across these games, and the others in brief. */
+function RatingFigure({ ratings }: { ratings: RatingStat[] }) {
+  const [main, ...others] = ratings;
+  return (
+    <div className="figure">
+      <div className="label">{TIME_CLASS_LABEL[main.timeClass]} rating</div>
+      <div className="value">{main.latest}</div>
+      <div className="note-line">
+        {main.games > 1 ? `${signed(main.change)} over ${main.games} games` : 'From one game'}
+        {others.slice(0, 2).map((r) => `, ${TIME_CLASS_LABEL[r.timeClass]} ${r.latest}`)}
+      </div>
+    </div>
   );
 }
 

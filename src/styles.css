@@ -1768,7 +1768,9 @@ a.note-eval {
 .figures {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* One stop per figure, however many there are. */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 14px 24px;
   margin: 0 0 26px;
   padding-top: 26px;
@@ -1822,6 +1824,7 @@ a.note-eval {
 /* Narrow: the strip turns to run down the left, one stop beside each figure. */
 @media (max-width: 639px) {
   .figures {
+    grid-auto-flow: row;
     grid-template-columns: minmax(0, 1fr);
     gap: 18px;
     padding: 0 0 0 32px;
