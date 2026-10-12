@@ -1,8 +1,10 @@
 /** One place for the names and addresses the app shows. */
 export const APP_NAME = 'ChessDebrief';
 export const REPO_URL = 'https://github.com/harsha2805/chess';
-/** Bug reports are posted here and emailed by the server. See public/api/report.php. */
-export const REPORT_ENDPOINT = 'api/report.php';
+/** Bug reports are posted here and emailed by the server (backend/app/Http/Controllers/Api/ReportController.php). */
+export const REPORT_ENDPOINT = 'report';
+/** How often the server checks linked chess accounts for new games. Matches CHESSDEBRIEF_FETCH_EVERY_HOURS. */
+export const FETCH_EVERY_HOURS = 2;
 export const APP_VERSION: string = __APP_VERSION__;
 
 export const SAMPLE_PGN = `[Event "A Night at the Opera"]
@@ -21,3 +23,6 @@ export const SAMPLE_PGN = `[Event "A Night at the Opera"]
  * Username import and bug report sending are switched off there, and routes are kept in memory.
  */
 export const PREVIEW: boolean = import.meta.env.VITE_PREVIEW === '1';
+
+/** Accounts need the Laravel backend in backend/, which the preview build cannot reach. */
+export const ACCOUNTS: boolean = !PREVIEW;

@@ -306,6 +306,7 @@ textarea {
   opacity: 1;
 }
 .theme-btn {
+  flex: none;
   width: 40px;
   height: 40px;
   margin-left: 6px;
@@ -325,6 +326,35 @@ textarea {
 .theme-btn svg {
   width: 19px;
   height: 19px;
+}
+/* Account: the person's initial when signed in, a figure when not. */
+.account-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin-left: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--seam);
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  font-weight: 900;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+.account-btn:hover {
+  border-color: var(--seam-strong);
+  color: var(--ink);
+}
+.account-btn[aria-current='page'] {
+  background: var(--sign);
+  border-color: var(--sign);
+  color: var(--sign-ink);
+}
+.account-btn svg {
+  width: 20px;
+  height: 20px;
 }
 
 .page {
@@ -405,6 +435,14 @@ textarea {
   min-height: 34px;
   padding: 6px 14px 4px;
   font-size: 0.875rem;
+}
+.btn.danger {
+  background: var(--danger);
+  color: var(--sign-ink);
+}
+.btn.danger:hover {
+  background: var(--danger);
+  filter: brightness(1.08);
 }
 .linklike {
   border: 0;
@@ -546,6 +584,41 @@ textarea {
 }
 .notice.error strong {
   color: var(--danger);
+}
+.field-error,
+.error-text {
+  color: var(--danger);
+  font-weight: 700;
+}
+.field-error {
+  font-size: 0.875rem;
+}
+
+/* Chess accounts checked for new games, on the Account page. */
+.linked-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--seam);
+}
+.prose .linked-list {
+  padding: 0;
+}
+.linked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--seam);
+  font-size: 1rem;
+}
+.linked-name {
+  margin-right: auto;
+}
+.linked-state {
+  color: var(--ink-3);
+  font-size: 0.875rem;
 }
 
 .progress {
@@ -2725,10 +2798,27 @@ a.note-eval {
   .nav a i {
     display: none;
   }
-  .theme-btn {
-    width: 36px;
-    height: 36px;
+  .theme-btn,
+  .account-btn {
+    width: 34px;
+    height: 34px;
     margin-left: 2px;
+  }
+}
+@media (max-width: 340px) {
+  /* The account and theme buttons share the bar with the nav: everything packs closer. */
+  .topbar-inner {
+    gap: 4px;
+  }
+  .nav a {
+    padding: 8px 5px 6px;
+    font-size: 0.75rem;
+  }
+  .theme-btn,
+  .account-btn {
+    width: 32px;
+    height: 32px;
+    margin-left: 0;
   }
 }
 

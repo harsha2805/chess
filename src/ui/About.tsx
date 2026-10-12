@@ -1,4 +1,4 @@
-import { APP_NAME, APP_VERSION, REPO_URL } from '../config';
+import { APP_NAME, APP_VERSION, FETCH_EVERY_HOURS, REPO_URL } from '../config';
 import { MARK_LABEL, MARK_ORDER } from '../lib/explain';
 import { MARK_MEANING } from '../lib/dictionary';
 import { DEPTHS, type DepthPreset } from '../lib/store';
@@ -78,9 +78,15 @@ export function About() {
 
       <h2>Your games stay with you</h2>
       <p>
-        Your browser asks chess.com or Lichess for the games directly, using their public interfaces. Games and reviews are saved in this
-        browser only. Nothing is uploaded, and there is no account. The one exception is a <a href={href('report')}>bug report</a>, which
+        Without an account, your browser asks chess.com or Lichess for the games directly, using their public interfaces, and games and
+        reviews are saved in this browser only. Nothing is uploaded. The one exception is a <a href={href('report')}>bug report</a>, which
         sends exactly what the form shows you.
+      </p>
+      <p>
+        An <a href={href('signup')}>account</a> is optional. With one, your games and reviews are also saved on this site's server, so they
+        are there on every device, and the server checks your chess.com or Lichess account for new games every {FETCH_EVERY_HOURS} hours.
+        The engine still runs in your browser. Signing out removes the games from that browser, and deleting the account deletes everything
+        saved with it.
       </p>
 
       <h2>Built with</h2>

@@ -247,6 +247,18 @@ export async function importLichess(username: string, limit: number): Promise<Ga
 }
 
 /**
+ * Turns one game the server fetched, stored as chess.com or Lichess sent it, into a record,
+ * with the same rules as an import from this browser. Null when it is not a game the app reads.
+ */
+export function recordFromRaw(source: string, account: string | null, raw: unknown): GameRecord | null {
+  const username = account?.split(':')[1];
+  if (!username || !raw || typeof raw !== 'object') return null;
+  if (source === 'chesscom') return recordsFromChessCom([raw as ChessComGame], username)[0] ?? null;
+  if (source === 'lichess') return recordsFromLichess([raw as LichessGame], username)[0] ?? null;
+  return null;
+}
+
+/**
  * Reads what was typed into the username box. A pasted profile address such as
  * "https://www.chess.com/member/name" or "lichess.org/@/name" gives the name and the site.
  */

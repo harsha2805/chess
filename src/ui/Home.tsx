@@ -1,8 +1,10 @@
 import { memo, useMemo, useState } from 'react';
+import { FETCH_EVERY_HOURS } from '../config';
+import { checkForGames, useAccount } from '../lib/account';
 import { DEPTHS, canDeepen, cancelReviews, isReviewed, removeGames, requestReview, resetEngine, reviewSetting, updateSettings, useStore, type DepthPreset, type GameSort, type Progress } from '../lib/store';
 import type { GameRecord, TimeClass } from '../lib/types';
 import { ImportForm } from './ImportForm';
-import { OUTCOME_LABEL, TIME_CLASS_LABEL, fold, gameDateLabel, perspective, resultMark, timeLabel } from './format';
+import { OUTCOME_LABEL, TIME_CLASS_LABEL, agoLabel, fold, gameDateLabel, perspective, resultMark, timeLabel } from './format';
 import { outcomeFor, resolvePlayer } from '../lib/insights';
 import { href } from './router';
 import { Welcome } from './Welcome';
@@ -66,6 +68,13 @@ function Library({ games }: { games: GameRecord[] }) {
   const failures = useStore((s) => s.failures);
   const settings = useStore((s) => s.settings);
   const slow = useStore((s) => s.slowEngine);
+  const accountStatus = useAccount((s) => s.status);
+  const linked = useAccount((s) => s.accounts);
+  const checking = useAccount((s) => s.checking);
+  const lastAdded = useAccount((s) => s.lastAdded);
+  const syncError = useAccount((s) => s.syncError);
+  const signedIn = accountStatus === 'signed-in';
+  const lastChecked = linked.reduce<number | null>((max, a) => (a.lastFetchedAt && (!max || a.lastFetchedAt > max) ? a.lastFetchedAt : max), null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [adding, setAdding] = useState(false);
   const player = useMemo(() => resolvePlayer(games, settings.player), [games, settings.player]);
@@ -113,6 +122,11 @@ function Library({ games }: { games: GameRecord[] }) {
     <>
       <div className="list-head">
         <h1>Games</h1>
+        {signedIn && linked.length > 0 && (
+          <button className="btn quiet" type="button" disabled={checking} onClick={() => void checkForGames(true)}>
+            {checking ? 'Checking…' : 'Check for new games'}
+          </button>
+        )}
         <button className="btn quiet" type="button" aria-expanded={adding} onClick={() => setAdding((v) => !v)}>
           {adding ? 'Close' : 'Add games'}
         </button>
@@ -222,6 +236,11 @@ function Library({ games }: { games: GameRecord[] }) {
                 <br />
               </>
             )}
+            {signedIn && lastAdded !== null && lastAdded > 0 && (
+              <>
+                {lastAdded} new {lastAdded === 1 ? 'game' : 'games'} came in.{' '}
+              </>
+            )}
             {games.length} {games.length === 1 ? 'game' : 'games'}, {reviewedCount} reviewed.{' '}
             {reviewedCount >= 3 && <a href={href('insights')}>See what they have in common</a>}
             {lighter.length > 0 && (
@@ -261,7 +280,29 @@ function Library({ games }: { games: GameRecord[] }) {
       </ul>
 
       <div className="list-foot">
-        <span>Reviews are saved in this browser. Nothing is uploaded.</span>
+        {signedIn ? (
+          <span>
+            {syncError ? (
+              <span className="error-text">{syncError}</span>
+            ) : linked.length > 0 ? (
+              <>
+                Saved to your account. New games come in every {FETCH_EVERY_HOURS} hours{lastChecked ? `; last checked ${agoLabel(lastChecked)}` : ''}.
+              </>
+            ) : (
+              <>
+                Saved to your account. Get games by username and new ones will come in every {FETCH_EVERY_HOURS} hours.
+              </>
+            )}{' '}
+            <a href={href('account')}>Account</a>
+          </span>
+        ) : accountStatus === 'signed-out' ? (
+          <span>
+            Reviews are saved in this browser only. <a href={href('signup')}>Create an account</a> to keep them on every device and get new games
+            every {FETCH_EVERY_HOURS} hours.
+          </span>
+        ) : (
+          <span>Reviews are saved in this browser. Nothing is uploaded.</span>
+        )}
         {confirmClear ? (
           <span>
             Remove all {games.length} games and their reviews?{' '}

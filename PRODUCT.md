@@ -29,13 +29,14 @@ ChessDebrief gives a full engine review of a player's games for free and without
 
 ## Capabilities and Constraints
 
-- Static site with no backend. It's built with Vite, React 19 and TypeScript, deployed by uploading `dist/` to shared hosting (DirectAdmin or cPanel). The only server code is `public/api/report.php`, which emails bug reports.
+- Built with Vite, React 19 and TypeScript, with a Laravel 13 backend in `backend/` (MySQL) for accounts, game sync, the scheduled fetch of new games and bug report emails. The React build is copied into Laravel's `public/` and deployed to shared hosting (DirectAdmin or cPanel).
+- Accounts are optional, with email and password. Signed in, games and reviews sync across browsers, and linked chess.com and Lichess accounts are checked for new games every 2 hours (and on "Check for new games"). The app works fully without signing in.
 - Stockfish 19 runs as single-threaded WebAssembly in a Web Worker, by design, because that needs no special headers. Games and reviews live in IndexedDB.
-- Routes: Games (home or library), Review (`#/game/:id/:ply`), Insights, How it works (About), Report a bug. Hash routing is used, and the preview build keeps routes in memory.
+- Routes: Games (home or library), Review (`#/game/:id/:ply`), Insights, How it works (About), Report a bug, Sign in, Create an account, Set a new password, Your account. Hash routing is used, and the preview build keeps routes in memory.
 - Move marks: brilliant, great, best, excellent, good, book, forced, inaccuracy, miss (missed chance), mistake, blunder. Their thresholds are product facts, documented on the About page.
 - Accuracy uses the formula Lichess publishes, so numbers differ a little from chess.com.
 - Review depth presets can be chosen. Username import calls the public chess.com and Lichess APIs straight from the browser.
-- A preview build (`npm run build:preview`) turns off username import and report sending.
+- A preview build (`npm run build:preview`) turns off username import, accounts and report sending.
 - The name is kept in one place: `src/config.ts`.
 
 ## Brand Commitments
@@ -56,7 +57,7 @@ ChessDebrief gives a full engine review of a player's games for free and without
 1. **The pattern beats the single game.** Design should lead players from one game's review to what repeats across their games.
 2. **Say why, in plain words.** A mark without a reason is noise. Explanations come before decoration.
 3. **Free and honest.** No dark patterns, no upsells, no fake scarcity. Be clear about what the engine can't tell you.
-4. **Your games stay with you.** Everything runs locally. Never imply uploads, accounts, or servers that don't exist.
+4. **Your games stay with you.** The engine always runs locally, and without an account nothing is uploaded. An account is a choice, never a gate: say plainly what it stores on the server, and let people sign out or delete it.
 
 ## Accessibility & Inclusion
 

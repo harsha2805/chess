@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { APP_NAME, APP_VERSION, PREVIEW, REPO_URL, REPORT_ENDPOINT } from '../config';
+import { ApiError, api } from '../lib/api';
 import { recentErrors } from '../lib/diagnostics';
 import { getState, useStore } from '../lib/store';
 
@@ -40,19 +41,13 @@ export function Report({ gameId, ply }: { gameId?: string; ply?: number }) {
     setProblem('');
     setState('sending');
     try {
-      const response = await fetch(REPORT_ENDPOINT, {
+      await api(REPORT_ENDPOINT, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: message.trim(), email: email.trim(), details, game: gameText, website }),
+        body: { message: message.trim(), email: email.trim(), details, game: gameText, website },
       });
-      const body = (await response.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-      if (!response.ok || !body?.ok) {
-        setProblem(body?.error ?? '');
-        setState('failed');
-        return;
-      }
       setState('sent');
-    } catch {
+    } catch (err) {
+      setProblem(err instanceof ApiError && err.status !== 0 ? err.message : '');
       setState('failed');
     }
   }

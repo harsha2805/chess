@@ -82,6 +82,12 @@ export const GlyphCheck = () => (
     <path d="M5 12.5l4.5 4.5L19 7.5" />
   </svg>
 );
+export const IconUser = () => (
+  <svg {...base}>
+    <circle cx="12" cy="8.5" r="3.6" />
+    <path d="M4.8 19.5c1.2-3.4 4-5.2 7.2-5.2s6 1.8 7.2 5.2" />
+  </svg>
+);
 export const GlyphDot = () => (
   <svg {...glyph} fill="currentColor" stroke="none">
     <circle cx="12" cy="12" r="5" />

@@ -4,9 +4,11 @@ Free review of chess games, in the browser. It gets a player's recent games from
 chess.com or Lichess (or takes a pasted PGN), runs Stockfish over every position,
 marks each move, and then looks for patterns across all the reviewed games.
 
-There is no server-side engine and no account. Stockfish runs as WebAssembly in a
-Web Worker, games are stored in the browser's IndexedDB, and the site itself is
-static files. The only server code is one small PHP file that emails bug reports.
+There is no server-side engine. Stockfish runs as WebAssembly in a Web Worker and
+games are stored in the browser's IndexedDB. Accounts are optional: signed in, games
+and reviews are also kept on the server (a Laravel app in `backend/`), so they are on
+every device, and the server fetches new games from linked chess.com and Lichess
+accounts every 2 hours.
 
 The name lives in one place, `src/config.ts`.
 
@@ -22,7 +24,10 @@ The name lives in one place, `src/config.ts`.
   analysed twice.
 - **Insights**: accuracy by phase and by game, error rate against the clock, the most
   common error patterns with links to the positions, and results by opening.
-- **Bug reports**: a form that emails the developer through `api/report.php`.
+- **Accounts (optional)**: sign up with an email and password. Games and reviews sync
+  between browsers. Accounts you get games for by username are checked for new games
+  every 2 hours by a scheduled job, while the app is open, and on "Check for new games".
+- **Bug reports**: a form that emails the developer through the backend (`POST /api/report`).
 
 ## How a move is judged
 
@@ -45,37 +50,81 @@ chess.com, which uses its own formula.
 
 ```bash
 npm install
-npm run dev        # local site with hot reload
+cd backend && composer install && cp .env.example .env && php artisan key:generate && cd ..
+# Create a MySQL database "chessdebrief", set DB_* in backend/.env, then:
+php backend/artisan migrate
+
+npm run dev:api    # Laravel on http://127.0.0.1:8000
+npm run dev        # the app on http://localhost:5173; /api and /sanctum are proxied to Laravel
 npm test           # unit tests, plus reviews with the real engine in Node
-npm run build      # production site in dist/
+php backend/artisan test   # backend tests (SQLite in memory)
 npm run analyze -- tests/games/opera.pgn 12   # review a PGN in the terminal
 ```
 
-Requires Node 20 or newer. `npm run dev` and `npm run build` first copy the engine
-from `node_modules/stockfish` into `public/engine`.
+Requires Node 20 or newer, PHP 8.3 or newer and Composer. `npm run dev` and
+`npm run build` first copy the engine from `node_modules/stockfish` into `public/engine`.
+With Laragon, mail goes to Mailpit (http://localhost:8025), as set in `backend/.env`.
+
+Without the backend running, the app still works and the account features stay hidden.
+
+## How accounts sync
+
+- The browser keeps working from IndexedDB. Signed in, every game added, reviewed or
+  removed goes into an outbox (in localStorage) and is sent to `POST /api/games/sync`.
+  Changes made elsewhere are pulled from `GET /api/games` in `(updated_ms, id)` order.
+- Of two reviews of a game, the newer one is kept, on both sides.
+- Games the server fetches are stored as chess.com or Lichess sent them. The browser
+  turns them into records with the same importer code it uses itself
+  (`recordFromRaw` in `src/lib/importers.ts`).
+- A removed game keeps an empty row on the server, so the scheduled fetch never
+  brings it back.
+- Sign-in is Laravel Sanctum's cookie session for single-page apps, so there are no
+  tokens in the browser. Signing out removes the games from that browser.
 
 ## Deploy on shared hosting (DirectAdmin, cPanel)
 
-The site needs no Node on the server.
+No command line is needed on the server.
 
-1. Run `npm run build`.
-2. Create a subdomain and upload the **contents** of `dist/` into its folder
-   (File Manager can upload a zip and extract it).
-3. For bug reports: in the uploaded `api/` folder, copy
-   `report-config.example.php` to `report-config.php` and put your address in it.
-   Use a `from` address on the site's own domain so the mail is not rejected.
+1. Build the zip: `npm run deploy:zip`. It builds the app, copies it into
+   `backend/public/`, installs production packages in a separate copy (your working
+   `backend/vendor` is untouched) and writes `deploy/chessdebrief-<version>-<time>.zip`.
+   For the first deploy, pass a production `.env` to include:
+   `npm run build:server && node scripts/make-deploy.mjs --env path/to/production.env`.
+   Update zips leave `.env` out, so the server keeps its own.
+2. The zip holds two folders: `chessdebrief/` (the Laravel app) and `public_html/` (its
+   public files). Upload it to the folder that contains the site's `public_html`
+   (DirectAdmin: `domains/<site>/`), empty `public_html` first, and extract there. The
+   app then sits beside the web root, where nothing in it can be opened from the web;
+   `index.php` and `maintenance.php` find it there. (With a document root you can point
+   anywhere, the usual Laravel layout works too: the app with `public/` inside it.)
+3. Edit `chessdebrief/.env`: `APP_URL`, the MySQL details and `MAIL_PASSWORD`.
+4. Open `https://your.domain/maintenance.php`, sign in with `CHESSDEBRIEF_ADMIN_PASSWORD`,
+   then press **Run migrations** and **Cache config and routes**. After later uploads, run
+   migrations again; after editing `.env`, press **Clear caches**.
+5. Scheduled fetch, either one:
+   - a cron job that can run PHP: `* * * * * cd ~/domains/<site>/chessdebrief && php artisan schedule:run >> /dev/null 2>&1`
+   - or, every 15 minutes, open the web cron address shown on the maintenance page
+     (`maintenance.php?cron=<CHESSDEBRIEF_CRON_TOKEN>`), with a cron job running
+     `wget -q -O /dev/null "<address>"` or a service such as cron-job.org.
+6. `storage/` and `bootstrap/cache/` must be writable by PHP (the maintenance page checks).
 
-`dist/.htaccess` sets the WebAssembly MIME type, compression and caching. The
-single-threaded engine is used on purpose: it needs no special headers.
+The maintenance page runs only a fixed list of commands (migrations, caches, the game
+fetch, a test email, the error log) and is off while `CHESSDEBRIEF_ADMIN_PASSWORD` is
+empty. Five wrong passwords lock it for 15 minutes.
+
+`backend/public/.htaccess` sets the WebAssembly MIME type, compression and caching, and
+serves `index.html` for `/`. The single-threaded engine is used on purpose: it needs no
+special headers.
 
 Username import calls `api.chess.com` and `lichess.org` straight from the visitor's
-browser. Both allow that from any site.
+browser. Both allow that from any site. The scheduled fetch calls them from the server,
+with `CHESSDEBRIEF_CONTACT` in the User-Agent, as both sites ask.
 
 ## Preview build
 
 `npm run build:preview -- <folder>` makes a variant for sandboxed preview pages that
-cannot reach other sites: username import and report sending are off, routes are kept
-in memory, and a plain JavaScript engine is included as a backup for frames that
+cannot reach other sites: username import, accounts and report sending are off, routes
+are kept in memory, and a plain JavaScript engine is included as a backup for frames that
 refuse WebAssembly.
 
 ## Layout
@@ -84,8 +133,8 @@ refuse WebAssembly.
 src/lib/        engine client, PGN parsing, review logic, importers, storage, insights
 src/ui/         React components (board, review, games list, insights, forms)
 src/data/       openings book, generated by scripts/build-openings.mjs
-public/api/     bug report endpoint (PHP)
-scripts/        engine copy, openings build, terminal reviewer, preview build
+backend/        Laravel API: accounts, game sync, scheduled fetch, bug reports
+scripts/        engine copy, openings build, terminal reviewer, preview build, copy to backend
 tests/          Vitest suites and sample games
 ```
 

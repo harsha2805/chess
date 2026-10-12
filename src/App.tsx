@@ -1,8 +1,9 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { APP_NAME, REPO_URL } from './config';
+import { useAccount } from './lib/account';
 import { Home } from './ui/Home';
 import { Review } from './ui/Review';
-import { IconMoon, IconSun } from './ui/icons';
+import { IconMoon, IconSun, IconUser } from './ui/icons';
 import { href, useRoute } from './ui/router';
 import { useTheme } from './ui/theme';
 
@@ -11,11 +12,17 @@ const Insights = lazy(() => import('./ui/Insights').then((m) => ({ default: m.In
 const Dictionary = lazy(() => import('./ui/Dictionary').then((m) => ({ default: m.Dictionary })));
 const About = lazy(() => import('./ui/About').then((m) => ({ default: m.About })));
 const Report = lazy(() => import('./ui/Report').then((m) => ({ default: m.Report })));
+const SignIn = lazy(() => import('./ui/Account').then((m) => ({ default: m.SignIn })));
+const Forgot = lazy(() => import('./ui/Account').then((m) => ({ default: m.Forgot })));
+const Reset = lazy(() => import('./ui/Account').then((m) => ({ default: m.Reset })));
+const AccountPage = lazy(() => import('./ui/Account').then((m) => ({ default: m.AccountPage })));
 
 export function App() {
   const route = useRoute();
   const [section, a, b] = route;
   const [theme, toggleTheme] = useTheme();
+  const accountStatus = useAccount((s) => s.status);
+  const email = useAccount((s) => s.user?.email);
 
   let page;
   let title = `${APP_NAME}: free chess game review`;
@@ -34,6 +41,18 @@ export function App() {
   } else if (section === 'report') {
     page = <Report gameId={a === 'game' ? b : undefined} ply={a === 'game' && route[3] ? Number(route[3]) || undefined : undefined} />;
     title = `Report a bug | ${APP_NAME}`;
+  } else if (section === 'signin' || section === 'signup') {
+    page = <SignIn create={section === 'signup'} />;
+    title = `${section === 'signup' ? 'Create an account' : 'Sign in'} | ${APP_NAME}`;
+  } else if (section === 'forgot') {
+    page = <Forgot />;
+    title = `Set a new password | ${APP_NAME}`;
+  } else if (section === 'reset' && a && b) {
+    page = <Reset token={a} email={b} />;
+    title = `Set a new password | ${APP_NAME}`;
+  } else if (section === 'account') {
+    page = <AccountPage />;
+    title = `Your account | ${APP_NAME}`;
   } else {
     page = <Home />;
   }
@@ -70,6 +89,21 @@ export function App() {
               Dictionary
             </a>
           </nav>
+          {accountStatus === 'signed-in' ? (
+            <a
+              className="account-btn"
+              href={href('account')}
+              aria-current={section === 'account' ? 'page' : undefined}
+              aria-label={`Your account (${email})`}
+              title={email}
+            >
+              <span aria-hidden="true">{email?.[0]?.toUpperCase()}</span>
+            </a>
+          ) : accountStatus === 'signed-out' ? (
+            <a className="account-btn" href={href('signin')} aria-current={section === 'signin' || section === 'signup' ? 'page' : undefined} aria-label="Sign in" title="Sign in">
+              <IconUser />
+            </a>
+          ) : null}
           <button
             className="theme-btn"
             type="button"
@@ -86,7 +120,13 @@ export function App() {
       </main>
       <footer className="footer">
         <div className="footer-inner">
-          <p>Runs in your browser. Your games are not uploaded.</p>
+          <p>
+            {accountStatus === 'signed-in'
+              ? 'Reviews run in your browser. Your games are saved to your account.'
+              : accountStatus === 'unavailable'
+                ? 'Runs in your browser. Your games are not uploaded.'
+                : 'Runs in your browser. Your games stay here unless you create an account.'}
+          </p>
           <a href={href('about')}>How it works</a>
           <a href={reportHref}>Report a bug</a>
           <a href={REPO_URL} target="_blank" rel="noreferrer">

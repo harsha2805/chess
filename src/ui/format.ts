@@ -40,6 +40,16 @@ export function dateLabel(ms: number): string {
   return dateFormat.format(ms);
 }
 
+/** "just now", "12 minutes ago", "3 hours ago", or the date when longer ago than a day. */
+export function agoLabel(ms: number, now = Date.now()): string {
+  const minutes = Math.round((now - ms) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+  return `on ${dateLabel(ms)}`;
+}
+
 const TAG_PATTERN = { Date: /\[Date "([^"]*)"\]/, Site: /\[Site "([^"]*)"\]/ };
 
 /** The PGN tag value, or undefined when it is missing or unknown ("?"). */

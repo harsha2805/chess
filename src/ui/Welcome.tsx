@@ -82,7 +82,7 @@ export function Welcome() {
         </li>
         <li>
           <h2>Stockfish marks every move</h2>
-          <p>It runs here in your browser, so there is no daily limit and your games are not uploaded. Each error comes with its reason in plain words.</p>
+          <p>It runs here in your browser, so there is no daily limit. Each error comes with its reason in plain words.</p>
         </li>
         <li>
           <h2>See what keeps going wrong</h2>

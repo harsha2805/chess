@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { buildReview, evaluatePosition, positionsOf, repeatKey } from './analyze';
 import { loadBook } from './book';
-import { deleteGames, loadGames, saveGames } from './db';
+import { clearGames, deleteGames, loadGames, saveGames } from './db';
 import { noteError } from './diagnostics';
 import { PREVIEW } from '../config';
 import { ASM_ENGINE, WASM_ENGINE, createBrowserEngine } from './engine-browser';
@@ -161,6 +161,7 @@ export async function addGames(records: GameRecord[]): Promise<number> {
   }
   set({ games: [...existing.values()].sort(byDate) });
   await saveGames(changed);
+  changeListener?.({ saved: changed.map((g) => g.id), deleted: [] });
   return added;
 }
 
@@ -169,6 +170,39 @@ export async function removeGames(ids: string[]) {
   for (const id of ids) cancelGame(id);
   set({ games: state.games.filter((g) => !drop.has(g.id)) });
   await deleteGames(ids);
+  changeListener?.({ saved: [], deleted: ids });
+}
+
+// ---- Changes from elsewhere: the account's other browsers and the scheduled fetch ----
+
+export interface GamesChange {
+  saved: string[];
+  deleted: string[];
+}
+
+let changeListener: ((change: GamesChange) => void) | null = null;
+
+/** Hears about games added, reviewed or removed here, so they can be sent to the account. */
+export function onGamesChanged(listener: (change: GamesChange) => void) {
+  changeListener = listener;
+}
+
+/** Stores games that changed on the account. Unlike `addGames`, nothing is reported back. */
+export async function applyRemote(saved: GameRecord[], deleted: string[]) {
+  if (saved.length === 0 && deleted.length === 0) return;
+  for (const id of deleted) cancelGame(id);
+  const games = new Map(state.games.map((g) => [g.id, g]));
+  for (const id of deleted) games.delete(id);
+  for (const g of saved) games.set(g.id, g);
+  set({ games: [...games.values()].sort(byDate) });
+  await Promise.all([saveGames(saved), deleteGames(deleted)]);
+}
+
+/** Forgets every game in this browser, as when the person signs out. */
+export async function clearLocal() {
+  cancelReviews();
+  set({ games: [], failures: {} });
+  await clearGames();
 }
 
 export { isReviewed };
@@ -383,6 +417,7 @@ async function finish(job: Job, engineName: string) {
   const updated = { ...current, review };
   set({ games: state.games.map((g) => (g.id === job.id ? updated : g)) });
   await saveGames([updated]);
+  changeListener?.({ saved: [job.id], deleted: [] });
 }
 
 /** Starts an engine lane for each one the device can take, while there is work for it. */

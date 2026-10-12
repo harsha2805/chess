@@ -1,8 +1,9 @@
 import { useId, useState, type FormEvent } from 'react';
-import { PREVIEW, SAMPLE_PGN } from '../config';
+import { FETCH_EVERY_HOURS, PREVIEW, SAMPLE_PGN } from '../config';
+import { getAccount, linkAccount, useAccount } from '../lib/account';
 import { ImportError, importAccount, readAccount, recordsFromPgn, type Platform } from '../lib/importers';
 import { addGames, updateSettings, useStore } from '../lib/store';
-import { navigate } from './router';
+import { href, navigate } from './router';
 
 const PLATFORM_NAME: Record<Platform, string> = { chesscom: 'Chess.com', lichess: 'Lichess' };
 
@@ -16,6 +17,7 @@ export async function openSample(ply?: number) {
 /** Username import and PGN paste. `compact` is the one-row version shown above the game list. */
 export function ImportForm({ compact = false }: { compact?: boolean }) {
   const settings = useStore((s) => s.settings);
+  const accountStatus = useAccount((s) => s.status);
   const [username, setUsername] = useState(settings.username);
   const [count, setCount] = useState(20);
   const [busy, setBusy] = useState(false);
@@ -51,10 +53,13 @@ export function ImportForm({ compact = false }: { compact?: boolean }) {
       const first = records.find((r) => r.me);
       const shown = first ? (first.me === 'w' ? first.white.name : first.black.name) : name;
       updateSettings({ platform, username: name, player: shown });
-      setMessage({
-        kind: 'ok',
-        text: added === 0 ? `Nothing new: all ${records.length} games were already here.` : `${added} ${added === 1 ? 'game' : 'games'} added.`,
-      });
+      let text = added === 0 ? `Nothing new: all ${records.length} games were already here.` : `${added} ${added === 1 ? 'game' : 'games'} added.`;
+      // Signed in, the account is checked for new games from now on.
+      if (getAccount().status === 'signed-in') {
+        const problem = await linkAccount(platform, name);
+        text += problem ? ` ${problem}` : ` New games from ${name} will come in every ${FETCH_EVERY_HOURS} hours.`;
+      }
+      setMessage({ kind: 'ok', text });
     } catch (err) {
       setMessage({
         kind: 'error',
@@ -228,6 +233,7 @@ export function ImportForm({ compact = false }: { compact?: boolean }) {
         <button className="linklike" type="button" onClick={() => void openSample()}>
           Open a sample game
         </button>
+        {accountStatus === 'signed-out' && <a href={href('signin')}>Sign in to see your saved games</a>}
       </p>
     </div>
   );

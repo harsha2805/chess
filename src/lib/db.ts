@@ -53,6 +53,18 @@ export async function saveGames(records: GameRecord[]): Promise<void> {
   }
 }
 
+/** Forgets every stored game, as when the person signs out. */
+export async function clearGames(): Promise<void> {
+  memory.clear();
+  const db = await open();
+  if (!db) return;
+  try {
+    await db.clear(STORE);
+  } catch {
+    persistent = false;
+  }
+}
+
 export async function deleteGames(ids: string[]): Promise<void> {
   for (const id of ids) memory.delete(id);
   const db = await open();
