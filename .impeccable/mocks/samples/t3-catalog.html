@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalog · Postmortem sample</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,200..900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0b0b0a; --black-2: #151513; --hair: #3a3a36; --white: #f2f1ec; --grey: #a3a29b; --grey-2: #8f8e87;
+    --m-brilliant: #19b3c2; --m-great: #4d86e8; --m-best: #47a85a; --m-excellent: #93c46f; --m-good: #9aa79d; --m-book: #b99a69;
+    --m-forced: #8b939d; --m-inaccuracy: #f0b429; --m-miss: #d466ae; --m-mistake: #f08a2e; --m-blunder: #ea4b3c;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--black); }
+  body { margin: 0; background: var(--black); color: var(--white); font-family: 'Archivo', system-ui, sans-serif; font-feature-settings: 'tnum'; }
+  ::selection { background: var(--white); color: var(--black); }
+  :focus-visible { outline: 1px solid var(--white); outline-offset: 3px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .caps { font-size: 0.6875rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--grey); }
+
+  .bar { display: flex; align-items: center; gap: 32px; padding: 22px 36px; }
+  .logo { color: var(--white); text-decoration: none; font-size: 0.75rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase; display: flex; align-items: center; gap: 14px; }
+  .logo i { font-style: normal; font-stretch: 62%; font-weight: 300; font-size: 1.6rem; letter-spacing: 0; }
+  .nav { display: flex; gap: 22px; margin-left: auto; }
+  .nav a { color: var(--grey-2); text-decoration: none; font-size: 0.6875rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; padding: 6px 0; border-bottom: 1px solid transparent; }
+  .nav a[aria-current] { color: var(--white); border-bottom-color: var(--white); }
+
+  .field { display: grid; grid-template-columns: minmax(0, 520px) minmax(0, 1fr); gap: 56px; padding: 18px 36px 56px; align-items: start; }
+
+  .meta { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; margin-bottom: 22px; }
+  .meta dt { font-size: 0.6875rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--grey-2); }
+  .meta dd { margin: 0; font-size: 0.875rem; font-weight: 500; }
+
+  .pm-board { display: grid; aspect-ratio: 1; position: relative; }
+  .sq { position: relative; display: grid; place-items: center; }
+  .sq.l { background: #b9b7ae; } .sq.d { background: #6b6a63; }
+  .sq.hl::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--white); }
+  .sq img { width: 86%; height: 86%; position: relative; }
+  .co { position: absolute; font-size: 0.55rem; font-weight: 700; letter-spacing: .1em; }
+  .co.r { top: 3px; left: 4px; } .co.f { bottom: 2px; right: 4px; }
+  .sq.l .co { color: #5c5b55; } .sq.d .co { color: #c9c8c0; }
+  .pm-badge { position: absolute; top: 4px; right: 4px; z-index: 2; width: 22px; height: 22px; display: grid; place-items: center; font-weight: 800; font-size: 0.7rem; color: var(--black); }
+  .pm-badge svg { width: 12px; height: 12px; }
+  .pm-arrow { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--white); pointer-events: none; }
+  .players { display: flex; justify-content: space-between; margin-top: 14px; }
+  .players div { display: grid; gap: 4px; }
+  .players div:last-child { text-align: right; }
+  .players b { font-size: 2.25rem; font-weight: 200; font-stretch: 70%; line-height: 1; }
+  .controls { display: flex; gap: 0; margin-top: 22px; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
+  .controls button { flex: 1; border: 0; background: none; padding: 12px 0; font-size: 0.6875rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--grey); }
+  .controls button + button { border-left: 1px solid var(--hair); }
+  .controls button:hover:not(:disabled) { color: var(--white); background: var(--black-2); }
+  .controls button:disabled { color: #3a3a36; cursor: default; }
+
+  .fac { display: flex; align-items: flex-end; gap: 22px; }
+  .fac .num { font-size: clamp(5rem, 11vw, 9.5rem); font-weight: 200; font-stretch: 62%; line-height: .8; letter-spacing: -0.02em; }
+  .fac .what { padding-bottom: 6px; }
+  .fac .san { font-size: 1.75rem; font-weight: 700; font-stretch: 85%; }
+  .fac .strip { display: inline-block; width: 46px; height: 12px; margin-left: 10px; vertical-align: 4px; }
+
+  .pulse { margin-top: 26px; position: relative; }
+  .pulse svg { width: 100%; display: block; }
+  .pulse .legend { display: flex; justify-content: space-between; margin-top: 10px; }
+
+  .note { margin-top: 26px; max-width: 64ch; }
+  .note p { font-size: 1.0625rem; line-height: 1.55; margin: 0 0 10px; color: #d8d7d0; }
+  .note p.lead { color: var(--white); font-size: 1.375rem; font-weight: 300; font-stretch: 90%; line-height: 1.35; }
+  .note .alt { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; border-top: 1px solid var(--hair); padding-top: 12px; margin-top: 14px; font-size: 0.9375rem; }
+  .note .alt button { border: 1px solid var(--grey-2); background: none; padding: 6px 12px; font-size: 0.6875rem; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; }
+  .note .alt button:hover { border-color: var(--white); }
+
+  .code { margin-top: 34px; }
+  .code .blocks { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 2px; margin-top: 10px; }
+  .code .blocks button { border: 0; height: 28px; padding: 0; opacity: .9; }
+  .code .blocks button[aria-current] { outline: 1px solid var(--white); outline-offset: 2px; opacity: 1; }
+  .code .blocks button:hover { opacity: 1; }
+  .code .decoded { margin-top: 10px; min-height: 1.4em; font-size: 0.875rem; color: var(--grey); }
+  .code .decoded b { color: var(--white); font-weight: 600; }
+  .key { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 16px; }
+  .key span { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--grey); }
+  .key i { width: 18px; height: 8px; }
+
+  @media (max-width: 960px) {
+    .bar { padding: 16px; gap: 16px; }
+    .field { grid-template-columns: minmax(0, 1fr); gap: 32px; padding: 8px 16px 40px; }
+    .players b { font-size: 1.75rem; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="logo" href="#"><i>!!</i>Postmortem</a>
+  <nav class="nav" aria-label="Main"><a href="#" aria-current="page">Games</a><a href="#">Insights</a></nav>
+</header>
+<main class="field">
+  <section>
+    <dl class="meta">
+      <dt>Game</dt><dd>Paul Morphy – Duke Karl / Count Isouard</dd>
+      <dt>Result</dt><dd>1–0, White won</dd>
+      <dt>Place</dt><dd>Paris, 1858</dd>
+      <dt>Opening</dt><dd>C41 Philidor Defense</dd>
+    </dl>
+    <div id="board"></div>
+    <div class="players" id="players"></div>
+    <div class="controls">
+      <button data-act="first">First</button><button data-act="prev">Back</button><button data-act="next">Next</button><button data-act="last">Last</button><button data-act="flip">Flip</button>
+    </div>
+  </section>
+  <section>
+    <div class="fac" id="fac"></div>
+    <div class="pulse">
+      <svg id="pulse" viewBox="0 0 640 400" aria-label="One line per move. The higher the peak, the more winning chances that move gave away."></svg>
+      <div class="legend"><span class="caps">One line per move · peak = chances given away</span><span class="caps">Click a line</span></div>
+    </div>
+    <div class="note" id="note" aria-live="polite"></div>
+    <div class="code">
+      <span class="caps">Game code · every move as a colour block</span>
+      <div class="blocks" id="blocks"></div>
+      <div class="decoded" id="decoded">Hover a block to read it.</div>
+      <div class="key" id="key"></div>
+    </div>
+  </section>
+</main>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+const { G, N, GLYPH, LABEL, ERRORS } = PM;
+const col = (mark) => getComputedStyle(document.documentElement).getPropertyValue('--m-' + mark).trim();
+
+function pulse(s) {
+  const W = 640, H = 400, rows = N, gap = (H - 70) / rows, mid = W / 2;
+  let out = '';
+  for (let i = 0; i < rows; i++) {
+    const m = G.moves[i];
+    const base = 60 + i * gap;
+    const amp = Math.min(70, m.loss * 5.5);
+    const seed = (k) => Math.sin(k * 12.9898 + i * 78.233) * 0.5 + 0.5;
+    let d = '';
+    for (let x = 40; x <= W - 40; x += 4) {
+      const t = (x - mid) / 70;
+      const env = Math.exp(-t * t);
+      const jitter = (seed(x) - 0.5) * 3 * (0.3 + env);
+      const y = base - amp * env - jitter;
+      d += (x === 40 ? 'M' : 'L') + x + ',' + y.toFixed(1);
+    }
+    const here = s.ply === m.ply;
+    out += `<g data-ply="${m.ply}" style="cursor:pointer"><path d="${d} L${W - 40},${H} L40,${H} Z" fill="#0b0b0a"/><path d="${d}" fill="none" stroke="${here ? '#f2f1ec' : '#cfcec7'}" stroke-width="${here ? 3 : 1.1}" opacity="${here ? 1 : 0.85}"/></g>`;
+  }
+  document.getElementById('pulse').innerHTML = out;
+}
+function fac(s) {
+  const m = PM.move(s.ply);
+  document.getElementById('fac').innerHTML = m
+    ? `<div class="num">${String(m.ply).padStart(2, '0')}</div><div class="what"><div class="caps">Move ${String(m.ply).padStart(2, '0')} of ${N}</div><div class="san">${PM.label(m)}${m.suffix}<span class="strip" style="background:${col(m.mark)}"></span></div><div class="caps" style="margin-top:4px">${LABEL[m.mark]} · eval ${m.eval}</div></div>`
+    : `<div class="num">00</div><div class="what"><div class="caps">Before the first move</div><div class="san">Starting position</div></div>`;
+}
+function note(s) {
+  const m = PM.move(s.ply), el = document.getElementById('note');
+  if (!m) { el.innerHTML = `<p class="lead">White played at ${PM.acc('w')}% accuracy and Black at ${PM.acc('b')}%.</p><p>Step through with the arrow keys or click any line of the plot.</p>`; return; }
+  const alt = m.best ? `<div class="alt"><span class="caps">Better was</span><span>${PM.lineText(m.ply, m.best.pv)}</span><button data-act="best">${s.showBest ? 'Back to the move played' : 'Show on the board'}</button></div>` : '';
+  el.innerHTML = `<p class="lead">${m.lead}</p>${m.notes.map((n) => `<p>${n}</p>`).join('')}${alt}`;
+}
+function blocks(s) {
+  document.getElementById('blocks').style.setProperty('--n', N);
+  document.getElementById('blocks').innerHTML = G.moves.map((m) => `<button data-ply="${m.ply}" data-mark="${m.mark}" style="background:${col(m.mark)}" aria-label="${PM.label(m)}, ${LABEL[m.mark]}" ${s.ply === m.ply ? 'aria-current="true"' : ''}></button>`).join('');
+}
+document.getElementById('blocks').addEventListener('mouseover', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const m = PM.move(+b.dataset.ply);
+  document.getElementById('decoded').innerHTML = `<b>${PM.label(m)}${m.suffix}</b> · ${LABEL[m.mark]} · ${m.eval}`;
+});
+document.getElementById('key').innerHTML = ['brilliant', 'great', 'best', 'excellent', 'book', 'forced', 'inaccuracy', 'mistake'].map((k) => `<span><i style="background:${col(k)}"></i>${LABEL[k]}</span>`).join('');
+
+PM.mount((s) => {
+  const v = PM.view(s);
+  document.getElementById('board').innerHTML = PM.board(v);
+  const b = document.querySelector('#board .pm-badge'); if (b) b.style.background = col(PM.move(s.ply).mark);
+  const top = s.flip ? 'w' : 'b';
+  const pl = (c) => `<div><span class="caps">${c === 'w' ? 'White · ' + G.white : 'Black · ' + G.black}</span><b>${PM.acc(c)}</b></div>`;
+  document.getElementById('players').innerHTML = pl('w') + pl('b');
+  document.querySelector('[data-act=first]').disabled = document.querySelector('[data-act=prev]').disabled = s.ply === 0;
+  document.querySelector('[data-act=last]').disabled = document.querySelector('[data-act=next]').disabled = s.ply === N;
+  fac(s); pulse(s); note(s); blocks(s);
+});
+</script>
+</body>
+</html>

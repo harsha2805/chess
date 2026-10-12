@@ -1,0 +1,144 @@
+{
+  "title": "Choose the visual world for Postmortem",
+  "question": "The roll assigned The Training File. Keep it, take an alternate, or re-roll.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "The Training File",
+      "kicker": "THE ROLL",
+      "lineage": "a coach's card file of positions: index cards, pressboard dividers, red pencil",
+      "thesis": "Every mistake gets filed as a card, and the card box shows which habits keep coming back.",
+      "palette": ["#f7f8f4", "#23262b", "#c8372d", "#8fb6dc", "#7a2430", "#2f6b4f", "#1f4e8c"],
+      "materials": ["ruled index card stock", "coloured pressboard tab dividers", "red coach's pencil", "typed card heads"],
+      "viewport": "Review: board at the left; the current move is a white index card at the right with a red header rule, the mark stamped in its corner and the why typed on its lines. Critical moments stand up as tabs along the move list.",
+      "risk": "If the card motif turns into decoration instead of structure, it gets twee. It has to stay as quick to scan as a plain analysis board.",
+      "raised": [
+        { "from": "challenger-zoo-map", "raise": "Insights opens on one dominant divider: the most frequent error pattern's colour owns the top of the screen, not a thin accent." },
+        { "from": "challenger-labanotation", "raise": "Length is real time: each move row carries a bar measuring the seconds spent on it, from the clock data the game already has." },
+        { "from": "challenger-lexicon", "raise": "Colour is quarantined: move-quality colour lives only on marks and tabs, everything else is graphite ink." },
+        { "from": "challenger-split-flap", "raise": "The games list is a strict ruled ledger; a review finishing re-stamps its row in place and never reflows the grid." },
+        { "from": "challenger-bitmap", "raise": "One diagram drawing at every scale: the board, a card's diagram and an insight thumbnail share the same squares and pieces." }
+      ],
+      "wireframe": { "cols": 12, "rows": 10, "regions": [
+        { "label": "top bar + nav", "x": 0, "y": 0, "w": 12, "h": 1 },
+        { "label": "board", "x": 0, "y": 1, "w": 7, "h": 8, "accent": true },
+        { "label": "move card: mark + why", "x": 7, "y": 1, "w": 5, "h": 3, "accent": true },
+        { "label": "eval graph", "x": 7, "y": 4, "w": 5, "h": 2 },
+        { "label": "tabbed move list", "x": 7, "y": 6, "w": 5, "h": 3 },
+        { "label": "controls", "x": 0, "y": 9, "w": 7, "h": 1 }
+      ]}
+    },
+    {
+      "id": "model-pick",
+      "label": "The Annotated Game Book",
+      "kicker": "IMPECCABLE’S PICK",
+      "lineage": "Chess Informant and tournament books: figurine notation, diagrams, !! and ?? symbols",
+      "thesis": "Your game, printed and annotated like a master's game in a book.",
+      "palette": ["#fbfaf6", "#191919", "#b3261e", "#5b6b7a"],
+      "materials": ["book paper", "figurine notation", "printed diagrams", "Informant symbols"],
+      "viewport": "Review: a two-column book spread, with the diagram inset in the commentary column and the move list read as running notation, annotations inline.",
+      "risk": "Familiar: it's close to the current look and to where most runs in this category land.",
+      "wireframe": { "cols": 12, "rows": 10, "regions": [
+        { "label": "running head", "x": 0, "y": 0, "w": 12, "h": 1 },
+        { "label": "diagram", "x": 0, "y": 1, "w": 6, "h": 6, "accent": true },
+        { "label": "commentary column", "x": 6, "y": 1, "w": 6, "h": 6 },
+        { "label": "running notation", "x": 0, "y": 7, "w": 12, "h": 3 }
+      ]}
+    },
+    {
+      "id": "challenger-ticket-wallet",
+      "label": "Carbon Scoresheet",
+      "verdict": "competitive",
+      "lineage": "jet-age ticket wallet, fused with the club scoresheet's carbon duplicate",
+      "thesis": "Each game is a carbon scoresheet; the review stamps itself onto it and nothing ever disappears.",
+      "palette": ["#ffffff", "#1c2a4a", "#c8102e", "#5a3e8c"],
+      "materials": ["carbon-copy form stock", "ruled hairline fields", "rubber stamps", "carbon-purple figures"],
+      "viewport": "Review: the scoresheet's numbered move rows run beside the board, errors are struck in carbon red, and result and accuracy are boxed at the foot like a signed sheet.",
+      "case": "Fuses well, because players sign a carbon scoresheet after every over-the-board game, but it loses narrowly on clarity for the pattern view.",
+      "risk": "The form grid can feel bureaucratic and dense on a phone.",
+      "hero": "https://impeccable.style/worlds/cards/vernacular-ephemera-jet-age-ticket-wallet-hero.webp",
+      "board": "https://impeccable.style/worlds/cards/vernacular-ephemera-jet-age-ticket-wallet.webp"
+    },
+    {
+      "id": "challenger-zoo-map",
+      "label": "Zoo Guide Map",
+      "verdict": "declined",
+      "lineage": "flat-colour garden guide maps",
+      "thesis": "Weaknesses as regions on a map.",
+      "palette": ["#8ED462", "#F5F1E4", "#2C2E2A", "#FF705D"],
+      "materials": ["flat colour lobes"],
+      "viewport": "Insights as a map of lobes.",
+      "risk": "Club players don't identify with it, and it obscures the task.",
+      "case": "Loses on both axes.",
+      "kept": "Region-scale colour commitment, for the lead divider on Insights.",
+      "hero": "https://impeccable.style/worlds/cards/aww2-zoo-gardens-guide-map-hero.webp"
+    },
+    {
+      "id": "challenger-labanotation",
+      "label": "Labanotation Score",
+      "verdict": "declined",
+      "lineage": "dance notation scores",
+      "thesis": "The game as a vertical score, white left and black right.",
+      "palette": ["#ffffff", "#111111", "#d9d9d9"],
+      "materials": ["score paper", "shaded blocks"],
+      "viewport": "A centre staff of moves read upward.",
+      "risk": "Unfamiliar reading direction for chess players.",
+      "case": "Loses on both axes.",
+      "kept": "Length encodes real duration: time spent per move.",
+      "hero": "https://impeccable.style/worlds/cards/notation-diagram-systems-labanotation-hero.webp"
+    },
+    {
+      "id": "challenger-lexicon",
+      "label": "Lexicon Page",
+      "verdict": "declined",
+      "lineage": "19th-century lexicon with colour plates",
+      "thesis": "Black text, colour only inside plates.",
+      "palette": ["#f3ecdc", "#141414", "#d2432a"],
+      "materials": ["uncoated stock", "chromolithograph plates"],
+      "viewport": "Fixed-measure columns with guide words.",
+      "risk": "Too bookish for a fast analysis tool.",
+      "case": "Loses on both axes.",
+      "kept": "Colour quarantine: quality colour only on marks and tabs.",
+      "hero": "https://impeccable.style/worlds/cards/rw-lexicon-shoulder-and-plate-hero.webp"
+    },
+    {
+      "id": "challenger-split-flap",
+      "label": "Split-Flap Board",
+      "verdict": "declined",
+      "lineage": "rail concourse departure boards",
+      "thesis": "Games as departures, reviews flipping into place.",
+      "palette": ["#111111", "#f2f2f2", "#ffb000"],
+      "materials": ["flap faces", "steel frame"],
+      "viewport": "Library as a departures board.",
+      "risk": "Novelty motion slows studying.",
+      "case": "Loses on both axes.",
+      "kept": "A strict ruled ledger where state changes re-stamp rows in place.",
+      "hero": "https://impeccable.style/worlds/cards/signals-instruments-split-flap-concourse-hero.webp"
+    },
+    {
+      "id": "challenger-bitmap",
+      "label": "Bitmap Specimen",
+      "verdict": "declined",
+      "lineage": "Emigre bitmap type specimens",
+      "thesis": "Pixel type at poster scale.",
+      "palette": ["#ffffff", "#000000", "#ff3b00"],
+      "materials": ["bitmap type", "halftone"],
+      "viewport": "Pixel headline over dense columns.",
+      "risk": "Pure style with no tie to chess.",
+      "case": "Loses on both axes.",
+      "kept": "One drawing repeated at many scales.",
+      "hero": "https://impeccable.style/worlds/cards/emigre-bitmap-specimen-hero.webp"
+    }
+  ],
+  "reroll": { "registers": ["safer", "bolder"] },
+  "canon": true,
+  "canonCard": {
+    "label": "The category standard",
+    "thesis": "The familiar analysis board of chess.com and Lichess, executed with full craft.",
+    "palette": ["#262421", "#ebecd0", "#779556", "#ffffff"],
+    "materials": ["dark app chrome", "green and buff board", "eval bar", "move table"],
+    "viewport": "Dark shell; eval bar and board at the left; move table and engine lines at the right.",
+    "risk": "Indistinguishable from the sites it reviews, by design."
+  },
+  "steer": true
+}

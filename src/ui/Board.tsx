@@ -42,7 +42,7 @@ export interface BoardProps {
   orientation: Color;
   /** The move to highlight. */
   move?: { from: string; to: string };
-  /** Colours the highlight and adds the tag on the destination square. */
+  /** Adds the mark's bullet on the destination square. */
   mark?: Mark;
   /** A suggested move, drawn as an arrow. */
   arrow?: { from: string; to: string };
@@ -55,7 +55,6 @@ export function Board({ fen, orientation, move, mark, arrow, label }: BoardProps
   const files = orientation === 'w' ? [0, 1, 2, 3, 4, 5, 6, 7] : [7, 6, 5, 4, 3, 2, 1, 0];
   const colOf = (square: string) => files.indexOf(FILES.indexOf(square[0]));
   const rowOf = (square: string) => ranks.indexOf(Number(square[1]));
-  const tint = mark ? `var(--m-${mark})` : 'var(--m-forced)';
 
   return (
     <div className="board" role="img" aria-label={label}>
@@ -67,7 +66,7 @@ export function Board({ fen, orientation, move, mark, arrow, label }: BoardProps
           const highlighted = move && (move.from === square || move.to === square);
           return (
             <div key={square} className={dark ? 'sq dark' : 'sq'}>
-              {highlighted && <i className="tint" style={{ background: tint }} />}
+              {highlighted && <i className="tint" />}
               {col === 0 && <span className="coord rank">{rank}</span>}
               {row === 7 && <span className="coord file">{FILES[file]}</span>}
               {piece && <img src={PIECES[piece]} alt={`${piece === piece.toUpperCase() ? 'White' : 'Black'} ${PIECE_ALT[piece.toLowerCase()]} on ${square}`} draggable={false} />}
@@ -126,7 +125,7 @@ export function EvalBar({ score, orientation }: { score: Score; orientation: Col
   const white = whiteWin(score);
   return (
     <div className={orientation === 'w' ? 'evalbar' : 'evalbar flipped'} role="img" aria-label={`White's winning chances: ${Math.round(white)}%`}>
-      <i style={{ height: `${white}%` }} />
+      <i style={{ transform: `scaleY(${white / 100})` }} />
     </div>
   );
 }

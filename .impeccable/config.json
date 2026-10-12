@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/styles.css"
+        ],
+        "createdAt": "2026-10-11T17:10:46.530Z",
+        "reason": "Claude, per the Night Line direction contract: the only remaining match is the station list's (.notation) left rule, which is the transit route line itself; all sign base bands were removed"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/samples/*"
+        ],
+        "createdAt": "2026-10-11T17:57:12.418Z",
+        "reason": "Claude: unchosen direction samples from the visual-world round; they intentionally use their own worlds' fonts and are not shipped"
+      }
+    ]
+  }
+}

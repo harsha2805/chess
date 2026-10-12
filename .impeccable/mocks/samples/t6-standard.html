@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Standard · Postmortem sample</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #262421; --panel: #302e2b; --panel-2: #3a3734; --line: #45423e; --text: #ececea; --text-2: #b3b0aa; --text-3: #a7a39c;
+    --sq-l: #ebecd0; --sq-d: #779556; --green: #81b64c;
+    --m-brilliant: #26c2a3; --m-great: #5c8bb0; --m-best: #81b64c; --m-excellent: #96bc4b; --m-good: #96af8b; --m-book: #a88865;
+    --m-forced: #97a1ab; --m-inaccuracy: #f7c631; --m-miss: #ee6b55; --m-mistake: #ffa459; --m-blunder: #fa412d;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-feature-settings: 'tnum'; }
+  ::selection { background: var(--green); color: #1b1a18; }
+  :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  .bar { display: flex; align-items: center; gap: 22px; padding: 0 22px; height: 56px; background: #1e1d1b; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.0625rem; color: var(--text); text-decoration: none; }
+  .logo i { font-style: normal; width: 28px; height: 28px; border-radius: 6px; background: var(--m-brilliant); color: #fff; display: grid; place-items: center; font-size: 0.8rem; font-weight: 900; }
+  .nav { display: flex; gap: 4px; margin-left: 12px; }
+  .nav a { color: var(--text-2); text-decoration: none; font-weight: 600; font-size: 0.9375rem; padding: 8px 12px; border-radius: 6px; }
+  .nav a[aria-current] { color: var(--text); background: var(--panel-2); }
+
+  .layout { display: grid; grid-template-columns: 28px minmax(0, min(78vh, 640px)) minmax(340px, 440px); gap: 14px; justify-content: center; padding: 22px; align-items: start; }
+  .evalbar { height: 100%; border-radius: 4px; overflow: hidden; background: #403d39; position: relative; display: flex; flex-direction: column; }
+  .evalbar .black { background: #403d39; transition: flex-basis .35s cubic-bezier(.2,.8,.2,1); }
+  .evalbar .white { background: #f4f4f2; flex: 1; }
+  .evalbar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 0.6875rem; font-weight: 800; }
+  .evalbar .top { top: 6px; color: #f4f4f2; } .evalbar .bot { bottom: 6px; color: #403d39; }
+
+  .player { display: flex; align-items: center; gap: 10px; padding: 8px 2px; font-weight: 700; font-size: 0.9375rem; }
+  .player .av { width: 36px; height: 36px; border-radius: 4px; background: var(--panel-2); display: grid; place-items: center; }
+  .player .av i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--text-2); }
+  .player .av i.w { background: #fff; } .player .av i.b { background: #111; }
+  .player .r { margin-left: auto; color: var(--text-2); font-weight: 600; }
+
+  .pm-board { display: grid; aspect-ratio: 1; position: relative; border-radius: 4px; overflow: visible; }
+  .sq { position: relative; display: grid; place-items: center; }
+  .sq.l { background: var(--sq-l); } .sq.d { background: var(--sq-d); }
+  .sq.hl.l { background: #f5f682; } .sq.hl.d { background: #b9ca43; }
+  .sq img { width: 92%; height: 92%; }
+  .co { position: absolute; font-size: 0.7rem; font-weight: 700; }
+  .co.r { top: 2px; left: 4px; } .co.f { bottom: 1px; right: 4px; }
+  .sq.l .co { color: var(--sq-d); } .sq.d .co { color: var(--sq-l); }
+  .pm-badge { position: absolute; top: -11px; right: -11px; z-index: 2; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 900; font-size: 0.8125rem; box-shadow: 0 2px 4px rgb(0 0 0 / .4); }
+  .pm-badge svg { width: 15px; height: 15px; }
+  .pm-arrow { position: absolute; inset: 0; width: 100%; height: 100%; color: rgb(255 170 0 / .85); pointer-events: none; }
+
+  .side { background: var(--panel); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; max-height: calc(min(78vh, 640px) + 104px); }
+  .side-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); font-weight: 800; }
+  .side-head svg { width: 20px; height: 20px; color: var(--green); }
+  .coach { padding: 14px 16px; display: grid; grid-template-columns: auto 1fr; gap: 12px; border-bottom: 1px solid var(--line); }
+  .coach .ic { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 900; }
+  .coach .ic svg { width: 19px; height: 19px; }
+  .coach .t { font-weight: 800; font-size: 1.0625rem; display: flex; align-items: center; gap: 8px; }
+  .coach .t .ev { margin-left: auto; font-size: 0.8125rem; background: #f4f4f2; color: #262421; padding: 2px 8px; border-radius: 4px; }
+  .coach p { margin: 6px 0 0; color: var(--text-2); font-size: 0.9375rem; line-height: 1.5; }
+  .coach .alt { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.875rem; color: var(--text-2); }
+  .coach .alt b { color: var(--text); }
+  .coach .alt button { border: 0; background: var(--panel-2); border-radius: 6px; padding: 6px 10px; font-weight: 700; font-size: 0.8125rem; }
+  .coach .alt button:hover { background: var(--line); }
+  .graph { padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  .graph svg { width: 100%; height: 70px; display: block; border-radius: 4px; }
+  .table { overflow: auto; flex: 1; scrollbar-color: var(--line) transparent; }
+  .table .row { display: grid; grid-template-columns: 48px 1fr 1fr; }
+  .table .row:nth-child(odd) { background: #2b2926; }
+  .table .no { color: var(--text-3); padding: 7px 0 7px 16px; font-size: 0.875rem; }
+  .table .mv { text-align: left; border: 0; background: none; padding: 7px 8px; font-weight: 600; font-size: 0.9375rem; display: flex; gap: 6px; align-items: center; }
+  .table .mv:hover { background: var(--panel-2); }
+  .table .mv[aria-current] { background: #4b4844; }
+  .table .mv i { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.55rem; font-weight: 900; color: #fff; }
+  .table .mv i svg { width: 9px; height: 9px; }
+  .controls { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 10px; border-top: 1px solid var(--line); }
+  .controls button { background: var(--panel-2); border: 0; border-radius: 6px; height: 40px; display: grid; place-items: center; }
+  .controls button:hover:not(:disabled) { background: var(--line); }
+  .controls button:disabled { opacity: .35; cursor: default; }
+  .controls svg { width: 20px; height: 20px; }
+  .accs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .accs div { background: var(--panel-2); border-radius: 6px; padding: 8px 10px; }
+  .accs small { color: var(--text-3); font-size: 0.75rem; font-weight: 600; display: block; }
+  .accs b { font-size: 1.375rem; }
+
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 16px minmax(0, 1fr); padding: 12px; gap: 8px; }
+    .side { grid-column: 1 / -1; max-height: none; }
+    .table { max-height: 260px; }
+    .nav { margin-left: auto; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="logo" href="#"><i>!!</i>Postmortem</a>
+  <nav class="nav" aria-label="Main"><a href="#" aria-current="page">Games</a><a href="#">Insights</a></nav>
+</header>
+<main class="layout">
+  <div class="evalbar" id="evalbar"><div class="black" id="ebBlack"></div><div class="white"></div><span class="top" id="ebTop"></span><span class="bot" id="ebBot"></span></div>
+  <section>
+    <div class="player" id="pTop"></div>
+    <div id="board"></div>
+    <div class="player" id="pBot"></div>
+  </section>
+  <aside class="side">
+    <div class="side-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l4-5 3 3 5-6"/></svg>Game review</div>
+    <div class="accs" id="accs"></div>
+    <div class="coach" id="coach" aria-live="polite"></div>
+    <div class="graph"><svg id="graph" viewBox="0 0 400 70" preserveAspectRatio="none"></svg></div>
+    <div class="table" id="table"></div>
+    <div class="controls">
+      <button data-act="first" aria-label="First move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 6l-6 6 6 6M7 6v12"/></svg></button>
+      <button data-act="prev" aria-label="Previous move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button data-act="next" aria-label="Next move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button data-act="last" aria-label="Last move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l6 6-6 6M17 6v12"/></svg></button>
+      <button data-act="flip" aria-label="Turn the board round"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg></button>
+    </div>
+  </aside>
+</main>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+const { G, N, GLYPH, LABEL, ERRORS } = PM;
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function evalbar(s) {
+  const v = PM.series[s.ply];
+  const m = PM.move(s.ply);
+  const blackShare = 100 - v;
+  document.getElementById('ebBlack').style.flexBasis = (s.flip ? v : blackShare) + '%';
+  document.getElementById('evalbar').style.flexDirection = 'column';
+  const txt = m ? m.eval.replace('+', '') : '0.0';
+  document.getElementById('ebBot').textContent = v >= 50 ? txt : '';
+  document.getElementById('ebTop').textContent = v < 50 ? txt : '';
+}
+function coach(s) {
+  const m = PM.move(s.ply), el = document.getElementById('coach');
+  if (!m) { el.innerHTML = `<span class="ic" style="background:var(--panel-2)">i</span><div><div class="t">Starting position</div><p>${G.opening.eco} ${G.opening.name}. Use the arrow keys to step through the game.</p></div>`; return; }
+  const alt = m.best ? `<div class="alt"><b>Best was</b>${PM.lineText(m.ply, m.best.pv)}<button data-act="best">${s.showBest ? 'Back to the move played' : 'Show on the board'}</button></div>` : '';
+  el.innerHTML = `<span class="ic" style="background:${css('--m-' + m.mark)}">${GLYPH[m.mark]}</span><div><div class="t">${m.san} is ${LABEL[m.mark].toLowerCase()}<span class="ev">${m.eval}</span></div><p>${m.lead} ${m.notes.join(' ')}</p>${alt}</div>`;
+}
+function graph(s) {
+  const pts = PM.points(400, 70);
+  const d = 'M' + pts.map((p) => p.map((n) => n.toFixed(1)).join(',')).join(' L');
+  const [x] = pts[s.ply];
+  const dots = pts.map(([px, py], i) => { const m = PM.move(i); return m && (ERRORS.includes(m.mark) || m.mark === 'brilliant' || m.mark === 'great') ? `<circle cx="${px}" cy="${py}" r="3.5" fill="${css('--m-' + m.mark)}" stroke="#262421" stroke-width="1"/>` : ''; }).join('');
+  const hits = pts.map(([px], i) => `<rect x="${px - 200 / N}" y="0" width="${400 / N}" height="70" fill="transparent" data-ply="${i}" style="cursor:pointer"/>`).join('');
+  document.getElementById('graph').innerHTML = `<rect width="400" height="70" fill="#403d39"/><path d="${d} L400,70 L0,70 Z" fill="#f4f4f2"/><line x1="0" x2="400" y1="35" y2="35" stroke="#8f8b85" stroke-dasharray="2 3"/><line x1="${x}" x2="${x}" y1="0" y2="70" stroke="#81b64c" stroke-width="2"/>${dots}${hits}`;
+}
+function table(s) {
+  let html = '';
+  for (let i = 0; i < N; i += 2) {
+    const cell = (m) => m ? `<button class="mv" data-ply="${m.ply}" ${s.ply === m.ply ? 'aria-current="true"' : ''}>${['brilliant', 'great', ...ERRORS].includes(m.mark) ? `<i style="background:${css('--m-' + m.mark)}">${GLYPH[m.mark]}</i>` : ''}${m.san}</button>` : '<span></span>';
+    html += `<div class="row"><span class="no">${i / 2 + 1}.</span>${cell(G.moves[i])}${cell(G.moves[i + 1])}</div>`;
+  }
+  const el = document.getElementById('table'); el.innerHTML = html;
+  el.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest' });
+}
+document.getElementById('accs').innerHTML = `<div><small>${G.white}</small><b>${PM.acc('w')}</b></div><div><small>${G.black}</small><b>${PM.acc('b')}</b></div>`;
+PM.mount((s) => {
+  const v = PM.view(s);
+  document.getElementById('board').innerHTML = PM.board(v);
+  const b = document.querySelector('#board .pm-badge'); if (b) b.style.background = css('--m-' + PM.move(s.ply).mark);
+  const top = s.flip ? 'w' : 'b';
+  const pl = (c) => `<span class="av"><i class="${c}"></i></span>${c === 'w' ? G.white : G.black}<span class="r">${c === 'w' ? 'White' : 'Black'}</span>`;
+  document.getElementById('pTop').innerHTML = pl(top);
+  document.getElementById('pBot').innerHTML = pl(top === 'w' ? 'b' : 'w');
+  document.querySelector('[data-act=first]').disabled = document.querySelector('[data-act=prev]').disabled = s.ply === 0;
+  document.querySelector('[data-act=last]').disabled = document.querySelector('[data-act=next]').disabled = s.ply === N;
+  evalbar(s); coach(s); graph(s); table(s);
+});
+</script>
+</body>
+</html>

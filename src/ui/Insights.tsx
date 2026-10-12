@@ -1,10 +1,10 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { MARK_LABEL, MARK_ORDER } from '../lib/explain';
-import { buildInsights, playerNames, resolvePlayer, type Insights as InsightsData, type TrendPoint } from '../lib/insights';
+import { buildInsights, outcomeFor, playerNames, resolvePlayer, type Insights as InsightsData, type TrendPoint } from '../lib/insights';
 import { isReviewed, requestReview, updateSettings, useStore } from '../lib/store';
-import type { Phase } from '../lib/types';
+import type { GameRecord, Phase } from '../lib/types';
 import { MarkTag } from './MarkTag';
-import { dateLabel } from './format';
+import { dateLabel, gameDateLabel, perspective } from './format';
 import { useWidth } from './hooks';
 import { IconChevron } from './icons';
 import { href, navigate } from './router';
@@ -68,13 +68,13 @@ export function Insights() {
           <p>Each review takes a few seconds. Start them here and come back, or open any game to review it on its own.</p>
         </div>
       ) : (
-        <Report data={data} />
+        <Report data={data} games={games} player={player} />
       )}
     </>
   );
 }
 
-function Report({ data }: { data: InsightsData }) {
+function Report({ data, games, player }: { data: InsightsData; games: GameRecord[]; player: string }) {
   const { record } = data;
   const phases = data.byPhase.filter((p) => p.moves >= 10);
   const worstPhase = phases.reduce<(typeof phases)[number] | null>((a, b) => (!a || b.accuracy < a.accuracy ? b : a), null);
@@ -129,6 +129,17 @@ function Report({ data }: { data: InsightsData }) {
       </div>
 
       <div className="panels">
+        {data.reviewed >= 2 && (
+          <section className="panel wide">
+            <h2>Every game, one line</h2>
+            <p className="hint">
+              Oldest at the top. Each peak is one of your moves that gave away winning chances: the taller, the more it cost. Select a line to
+              open that game.
+            </p>
+            <Pulse games={games} player={player} />
+          </section>
+        )}
+
         {data.trend.length >= 2 && (
           <section className="panel wide">
             <h2>Accuracy, game by game</h2>
@@ -307,8 +318,8 @@ const OUTCOME_WORD = { win: 'Won', draw: 'Drew', loss: 'Lost' } as const;
 
 function Dot({ point, cx, cy, active }: { point: TrendPoint; cx: number; cy: number; active: boolean }) {
   const r = active ? 6 : 4.5;
-  if (point.outcome === 'loss') return <circle cx={cx} cy={cy} r={r - 1} fill="var(--paper)" stroke="var(--ink)" strokeWidth="2" />;
-  return <circle cx={cx} cy={cy} r={r} fill={point.outcome === 'win' ? 'var(--ink)' : 'var(--ink-3)'} stroke="var(--paper)" strokeWidth="2" />;
+  if (point.outcome === 'loss') return <circle cx={cx} cy={cy} r={r - 1} fill="var(--ground-2)" stroke="var(--ink)" strokeWidth="2" />;
+  return <circle cx={cx} cy={cy} r={r} fill={point.outcome === 'win' ? 'var(--ink)' : 'var(--ink-3)'} stroke="var(--ground-2)" strokeWidth="2" />;
 }
 
 function TrendChart({ points, average }: { points: TrendPoint[]; average: number }) {
@@ -347,7 +358,7 @@ function TrendChart({ points, average }: { points: TrendPoint[]; average: number
       >
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={m.l} x2={width - m.r} y1={y(t)} y2={y(t)} stroke="var(--line)" strokeWidth="1" />
+            <line x1={m.l} x2={width - m.r} y1={y(t)} y2={y(t)} stroke="var(--seam)" strokeWidth="1" />
             <text x={m.l - 8} y={y(t) + 4} textAnchor="end">
               {t}
             </text>
@@ -357,8 +368,9 @@ function TrendChart({ points, average }: { points: TrendPoint[]; average: number
         <text x={width - m.r} y={y(average) - 5} textAnchor="end" className="cat">
           average {average.toFixed(1)}
         </text>
-        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={m.t} y2={H - m.b} stroke="var(--line-strong)" strokeWidth="1" />}
-        <path d={path} fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={m.t} y2={H - m.b} stroke="var(--seam-strong)" strokeWidth="1" />}
+        <path d={path} fill="none" stroke="var(--route-under)" strokeWidth="9" strokeLinejoin="round" strokeLinecap="round" />
+        <path d={path} fill="none" stroke="var(--route)" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
         {points.map((p, i) => (
           <Dot key={p.gameId} point={p} cx={x(i)} cy={y(p.accuracy)} active={hover === i} />
         ))}
@@ -394,6 +406,86 @@ function TrendChart({ points, average }: { points: TrendPoint[]; average: number
           Lost
         </span>
       </div>
+    </div>
+  );
+}
+
+/** Reviewed games of this player, oldest first, as one pulse line each. Peaks are the player's costly moves. */
+function Pulse({ games, player }: { games: GameRecord[]; player: string }) {
+  const [ref, width] = useWidth<HTMLDivElement>(640);
+  const rows = useMemo(
+    () =>
+      games
+        .filter((g) => isReviewed(g) && perspective(g, player))
+        .sort((a, b) => a.playedAt - b.playedAt)
+        .slice(-16)
+        .map((g) => {
+          const side = perspective(g, player)!;
+          const opponent = side === 'w' ? g.black.name : g.white.name;
+          const outcome = outcomeFor(g, side);
+          const costly = g.review!.moves.filter((m) => m.color === side && m.loss >= 2).map((m) => ({ move: Math.ceil(m.ply / 2), loss: m.loss }));
+          return { game: g, opponent, outcome, costly, length: Math.ceil(g.plies / 2), accuracy: g.review!.accuracy[side] };
+        }),
+    [games, player],
+  );
+  if (rows.length === 0) return null;
+
+  // Wide screens keep the names in a gutter; narrow ones give the lines the full width and set each name above its line.
+  const narrow = width < 560;
+  const left = narrow ? 4 : 190;
+  const right = 8;
+  const gap = narrow ? 44 : 28;
+  const cap = narrow ? 24 : 52;
+  const top = narrow ? 44 : 48;
+  const H = top + (rows.length - 1) * gap + 34;
+  const span = Math.min(80, Math.max(30, ...rows.map((r) => r.length)));
+  const x = (move: number) => left + ((move - 0.5) / span) * (width - left - right);
+  const sigma = Math.max(3, ((width - left - right) / span) * 0.7);
+  const ticks = [10, 20, 30, 40, 50, 60, 70, 80].filter((t) => t < span);
+
+  return (
+    <div className="chart pulse" ref={ref}>
+      <svg height={H} viewBox={`0 0 ${width} ${H}`} aria-label={`${rows.length} reviewed games, one line each, oldest at the top.`}>
+        {rows.map((r, i) => {
+          const base = top + i * gap;
+          const end = Math.min(width - right, x(Math.min(r.length, span) + 0.5));
+          let d = '';
+          for (let px = left; px <= end; px += 3) {
+            let lift = 0;
+            for (const c of r.costly) {
+              if (c.move > span) continue;
+              const t = (px - x(c.move)) / sigma;
+              lift += Math.min(cap - 6, c.loss * (narrow ? 1 : 1.7)) * Math.exp(-t * t);
+            }
+            d += `${px === left ? 'M' : 'L'}${px.toFixed(1)},${(base - Math.min(lift, cap)).toFixed(1)}`;
+          }
+          const name = !narrow && r.opponent.length > 20 ? `${r.opponent.slice(0, 19)}…` : r.opponent;
+          const word = r.outcome === 'win' ? 'won' : r.outcome === 'loss' ? 'lost' : 'drew';
+          const labelY = narrow ? base - cap - 4 : base;
+          return (
+            <a key={r.game.id} href={href('game', r.game.id)} aria-label={`${word} against ${r.opponent}, ${gameDateLabel(r.game)}, accuracy ${r.accuracy.toFixed(1)}%`}>
+              <rect x="0" y={base - gap + 4} width={width} height={gap} fill="transparent" />
+              <path className="pulse-fill" d={`${d} L${end.toFixed(1)},${H} L${left},${H} Z`} />
+              <path className="pulse-line" d={d} />
+              <circle className={r.outcome === 'win' ? 'pulse-chip win' : 'pulse-chip'} cx="8" cy={labelY - 4} r="7" />
+              <text className="pulse-chip-text" x="8" y={labelY - 1} textAnchor="middle">
+                {r.outcome === 'win' ? 'W' : r.outcome === 'loss' ? 'L' : 'D'}
+              </text>
+              <text className="pulse-label" x="22" y={labelY}>
+                {name}
+              </text>
+            </a>
+          );
+        })}
+        {ticks.map((t) => (
+          <text key={t} className="pulse-axis" x={x(t)} y={H - 4} textAnchor="middle">
+            {t}
+          </text>
+        ))}
+        <text className="pulse-axis" x="0" y={H - 4}>
+          move
+        </text>
+      </svg>
     </div>
   );
 }

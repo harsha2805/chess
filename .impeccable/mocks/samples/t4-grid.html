@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grid Specimen · Postmortem sample</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --u: 24px; --paper: #fbfbf8; --ink: #111; --ink-2: #4d4d4d; --grid: rgb(40 110 220 / .13); --grid-2: rgb(40 110 220 / .28);
+    --accent: #19b3c2;
+    --m-brilliant: #0fa3b5; --m-great: #2f6fdc; --m-best: #2c9a48; --m-excellent: #6fae4c; --m-good: #8a9a8f; --m-book: #a8885a;
+    --m-forced: #7c8794; --m-inaccuracy: #f2b01e; --m-miss: #c94f9f; --m-mistake: #f07a1f; --m-blunder: #e23b2e;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body { margin: 0; color: var(--ink); font-family: 'Schibsted Grotesk', system-ui, sans-serif;
+    background-color: var(--paper);
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+      linear-gradient(var(--grid-2) 1px, transparent 1px), linear-gradient(90deg, var(--grid-2) 1px, transparent 1px);
+    background-size: var(--u) var(--u), var(--u) var(--u), calc(var(--u) * 8) calc(var(--u) * 8), calc(var(--u) * 8) calc(var(--u) * 8); }
+  body.nogrid { background-image: none; }
+  ::selection { background: var(--ink); color: var(--paper); }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  .bar { height: calc(var(--u) * 3); display: flex; align-items: center; gap: var(--u); padding: 0 var(--u); }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.0625rem; color: var(--ink); text-decoration: none; }
+  .logo .cellmark { display: grid; grid-template-columns: repeat(5, 6px); gap: 1px; }
+  .logo .cellmark i { width: 6px; height: 6px; border-radius: 1.5px; }
+  .nav { display: flex; gap: 0; margin-left: auto; }
+  .nav a, .nav button { height: calc(var(--u) * 1.5); padding: 0 var(--u); display: grid; place-items: center; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 0.875rem; border: 2px solid var(--ink); background: var(--paper); }
+  .nav a + a, .nav a + button { border-left: 0; }
+  .nav a[aria-current] { background: var(--ink); color: var(--paper); }
+  .nav button { margin-left: var(--u); font-weight: 500; }
+
+  .head { position: relative; isolation: isolate; margin: 0 var(--u); min-height: calc(var(--u) * 9); display: flex; align-items: center; gap: calc(var(--u) * 1.5); padding: var(--u); }
+  .plane { position: absolute; inset: 0; background: var(--accent); z-index: -1; transition: background-color .25s; }
+  .glyphs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .glyph { display: grid; gap: 2px; }
+  .glyph i { width: 15px; height: 15px; border-radius: 4px; background: var(--ink); opacity: 0; transform: scale(.4); transition: opacity .18s, transform .18s; }
+  .glyph i.on { opacity: 1; transform: none; }
+  .glyph i.off { background: transparent; }
+  .head .side { margin-left: auto; max-width: 320px; display: grid; gap: 6px; }
+  .head .side .k { font-weight: 800; font-size: 1.25rem; }
+  .head .side .t { font-size: 0.9375rem; line-height: 1.45; }
+  .head .side .ev { justify-self: start; font-weight: 800; background: var(--ink); color: var(--paper); padding: 2px 8px; }
+
+  .grid { display: grid; grid-template-columns: calc(var(--u) * 21) minmax(0, 1fr); gap: var(--u); padding: var(--u); align-items: start; }
+  .board-wrap { background: var(--paper); border: 2px solid var(--ink); }
+  .player { height: calc(var(--u) * 2); display: flex; align-items: center; gap: 10px; padding: 0 12px; font-weight: 700; font-size: 0.9375rem; }
+  .player .acc { margin-left: auto; font-weight: 800; font-feature-settings: 'tnum'; }
+  .player .pip { width: 12px; height: 12px; border-radius: 3px; border: 2px solid var(--ink); }
+  .player .pip.b { background: var(--ink); }
+  .pm-board { display: grid; aspect-ratio: 1; position: relative; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+  .sq { position: relative; display: grid; place-items: center; }
+  .sq.l { background: #fff; } .sq.d { background: #cfd8ea; }
+  .sq.hl { background: #ffe9a8 !important; }
+  .sq img { width: 86%; height: 86%; }
+  .co { position: absolute; font-size: 0.6rem; font-weight: 700; color: #6d7890; }
+  .co.r { top: 2px; left: 3px; } .co.f { bottom: 1px; right: 3px; }
+  .pm-badge { position: absolute; top: -9px; right: -9px; z-index: 2; width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center; font-weight: 800; font-size: 0.8rem; color: #fff; border: 2px solid var(--ink); }
+  .pm-badge svg { width: 13px; height: 13px; }
+  .pm-arrow { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--ink); pointer-events: none; }
+  .controls { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 2px solid var(--ink); }
+  .controls button { height: calc(var(--u) * 2); border: 0; background: var(--paper); font-weight: 700; font-size: 0.875rem; }
+  .controls button + button { border-left: 2px solid var(--ink); }
+  .controls button:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+  .controls button:disabled { color: #b4b4b4; cursor: default; }
+
+  .panel { background: var(--paper); border: 2px solid var(--ink); }
+  .panel + .panel { margin-top: var(--u); }
+  .panel h2 { margin: 0; height: calc(var(--u) * 1.5); display: flex; align-items: center; padding: 0 12px; font-size: 0.8125rem; font-weight: 800; border-bottom: 2px solid var(--ink); }
+  .panel .body { padding: 12px; }
+  .note p { margin: 0 0 8px; font-size: 1rem; line-height: 1.5; max-width: 66ch; }
+  .note .alt { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 12px; font-size: 0.9375rem; }
+  .note .alt button { border: 2px solid var(--ink); background: var(--paper); padding: 4px 10px; font-weight: 700; font-size: 0.8125rem; }
+  .note .alt button:hover { background: var(--ink); color: var(--paper); }
+
+  .cols { display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 2px; height: calc(var(--u) * 5); align-items: end; }
+  .col { height: 100%; display: grid; grid-template-rows: repeat(10, 1fr); gap: 2px; border: 0; padding: 0; background: none; }
+  .col i { border-radius: 2px; background: #e7e7e3; }
+  .col i.w { background: var(--ink); }
+  .col[aria-current] i.w { background: var(--accent); }
+  .col[aria-current] { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .cols-key { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--ink-2); margin-top: 8px; }
+
+  .notation { display: grid; grid-template-columns: 36px 1fr 1fr 36px 1fr 1fr; gap: 2px; max-height: calc(var(--u) * 8); overflow: auto; }
+  .notation .no { display: grid; place-items: center; font-size: 0.75rem; color: var(--ink-2); }
+  .notation .mv { height: var(--u); text-align: left; border: 0; background: none; padding: 0 6px; font-weight: 600; font-size: 0.875rem; display: flex; align-items: center; gap: 4px; }
+  .notation .mv:hover { background: #ececea; }
+  .notation .mv[aria-current] { background: var(--ink); color: var(--paper); }
+  .notation .sx { width: 8px; height: 8px; border-radius: 2px; }
+
+  @media (max-width: 900px) {
+    :root { --u: 16px; }
+    .grid { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+    .head { margin: 0 16px; flex-wrap: wrap; }
+    .head .side { margin-left: 0; max-width: none; }
+    .glyph i { width: 9px; height: 9px; border-radius: 2.5px; }
+    .nav button { display: none; }
+    .notation { grid-template-columns: 30px 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="logo" href="#"><span class="cellmark" id="cellmark"></span>Postmortem</a>
+  <nav class="nav" aria-label="Main"><a href="#" aria-current="page">Games</a><a href="#">Insights</a><button type="button" id="gridToggle" aria-pressed="true">Hide grid</button></nav>
+</header>
+<section class="head" aria-live="polite"><div class="plane" id="plane"></div><div class="glyphs" id="glyphs" aria-hidden="true"></div><div class="side" id="side"></div></section>
+<main class="grid">
+  <section class="board-wrap">
+    <div class="player" id="pTop"></div>
+    <div id="board"></div>
+    <div class="player" id="pBot"></div>
+    <div class="controls"><button data-act="first">Start</button><button data-act="prev">Back</button><button data-act="next">Next</button><button data-act="last">End</button><button data-act="flip">Flip</button></div>
+  </section>
+  <section>
+    <div class="panel note"><h2>Why</h2><div class="body" id="note"></div></div>
+    <div class="panel"><h2>Winning chances for White, one column per move</h2><div class="body"><div class="cols" id="cols"></div><div class="cols-key"><span>1.e4</span><span>17.Rd8#</span></div></div></div>
+    <div class="panel"><h2>Moves</h2><div class="body"><div class="notation" id="notation"></div></div></div>
+  </section>
+</main>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+const { G, N, GLYPH, LABEL, ERRORS } = PM;
+const F = {
+  '0': ['01110','10001','10011','10101','11001','10001','01110'], '1': ['00100','01100','00100','00100','00100','00100','01110'],
+  '2': ['01110','10001','00001','00010','00100','01000','11111'], '3': ['11110','00001','00001','01110','00001','00001','11110'],
+  '4': ['00010','00110','01010','10010','11111','00010','00010'], '5': ['11111','10000','11110','00001','00001','10001','01110'],
+  '6': ['00110','01000','10000','11110','10001','10001','01110'], '7': ['11111','00001','00010','00100','01000','01000','01000'],
+  '8': ['01110','10001','10001','01110','10001','10001','01110'], '9': ['01110','10001','10001','01111','00001','00010','01100'],
+  a: ['00000','00000','01110','00001','01111','10001','01111'], b: ['10000','10000','10110','11001','10001','10001','11110'],
+  c: ['00000','00000','01110','10000','10000','10001','01110'], d: ['00001','00001','01101','10011','10001','10001','01111'],
+  e: ['00000','00000','01110','10001','11111','10000','01110'], f: ['00110','01001','01000','11100','01000','01000','01000'],
+  g: ['00000','01111','10001','10001','01111','00001','01110'], h: ['10000','10000','10110','11001','10001','10001','10001'],
+  x: ['00000','00000','10001','01010','00100','01010','10001'], K: ['10001','10010','10100','11000','10100','10010','10001'],
+  Q: ['01110','10001','10001','10001','10101','10010','01101'], R: ['11110','10001','10001','11110','10100','10010','10001'],
+  B: ['11110','10001','10001','11110','10001','10001','11110'], N: ['10001','10001','11001','10101','10011','10001','10001'],
+  O: ['01110','10001','10001','10001','10001','10001','01110'], '+': ['00000','00100','00100','11111','00100','00100','00000'],
+  '#': ['01010','01010','11111','01010','11111','01010','01010'], '=': ['00000','00000','11111','00000','11111','00000','00000'],
+  '-': ['000','000','000','111','000','000','000'], '.': ['0','0','0','0','0','0','1'], '…': ['00000','00000','00000','00000','00000','00000','10101'],
+  '!': ['1','1','1','1','1','0','1'], '?': ['01110','10001','00001','00010','00100','00000','00100'], ' ': ['00','00','00','00','00','00','00'],
+};
+function glyphs(text, el) {
+  let k = 0;
+  el.innerHTML = [...text].map((ch) => {
+    const rows = F[ch] || F[' '], w = rows[0].length;
+    const cells = rows.map((r) => [...r].map((b) => `<i class="${b === '1' ? 'cell' : 'off'}" style="transition-delay:${(k++ % 60) * 6}ms"></i>`).join('')).join('');
+    return `<span class="glyph" style="grid-template-columns:repeat(${w},auto)">${cells}</span>`;
+  }).join('');
+  requestAnimationFrame(() => requestAnimationFrame(() => el.querySelectorAll('i.cell').forEach((i) => i.classList.add('on'))));
+}
+document.getElementById('cellmark').innerHTML = ['1','1','0','1','1'].concat(['1','1','0','1','1']).map((b, i) => `<i style="background:${b === '1' ? (i % 5 < 2 ? '#111' : '#0fa3b5') : 'transparent'}"></i>`).join('');
+document.getElementById('gridToggle').addEventListener('click', (e) => {
+  const off = document.body.classList.toggle('nogrid');
+  e.currentTarget.textContent = off ? 'Show grid' : 'Hide grid';
+  e.currentTarget.setAttribute('aria-pressed', String(!off));
+});
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function head(s) {
+  const m = PM.move(s.ply);
+  const accent = m ? css('--m-' + m.mark) : '#e7e7e3';
+  document.documentElement.style.setProperty('--accent', accent);
+  glyphs(m ? `${PM.moveNo(m).replace('…', '…')}${m.san}${m.suffix}` : 'start', document.getElementById('glyphs'));
+  document.getElementById('side').innerHTML = m
+    ? `<span class="k">${LABEL[m.mark]}</span><span class="t">${m.lead}</span><span class="ev">${m.eval}</span>`
+    : `<span class="k">Starting position</span><span class="t">${G.opening.eco} ${G.opening.name}. Step with the arrow keys.</span>`;
+}
+function note(s) {
+  const m = PM.move(s.ply), el = document.getElementById('note');
+  if (!m) { el.innerHTML = `<p>White played at ${PM.acc('w')}% accuracy and Black at ${PM.acc('b')}%.</p>`; return; }
+  const alt = m.best ? `<div class="alt"><b>Better was</b><span>${PM.lineText(m.ply, m.best.pv)}</span><button data-act="best">${s.showBest ? 'Back to the move played' : 'Show on the board'}</button></div>` : '';
+  el.innerHTML = (m.notes.length ? m.notes.map((n) => `<p>${n}</p>`).join('') : `<p>${m.lead}</p>`) + alt;
+}
+function cols(s) {
+  const el = document.getElementById('cols'); el.style.setProperty('--n', N + 1);
+  el.innerHTML = PM.series.map((v, i) => {
+    const filled = Math.round(v / 10);
+    const cells = Array.from({ length: 10 }, (_, k) => `<i class="${9 - k < filled ? 'w' : ''}"></i>`).join('');
+    return `<button class="col" data-ply="${i}" aria-label="${i ? PM.label(PM.move(i)) : 'Start'}: ${Math.round(v)}%" ${s.ply === i ? 'aria-current="true"' : ''}>${cells}</button>`;
+  }).join('');
+}
+function notation(s) {
+  let html = '';
+  for (let i = 0; i < N; i += 2) {
+    const cell = (m) => m ? `<button class="mv" data-ply="${m.ply}" ${s.ply === m.ply ? 'aria-current="true"' : ''}>${m.san}${m.suffix ? `<i class="sx" style="background:${css('--m-' + m.mark)}" title="${LABEL[m.mark]}"></i>` : ''}</button>` : '<span></span>';
+    html += `<span class="no">${i / 2 + 1}</span>${cell(G.moves[i])}${cell(G.moves[i + 1])}`;
+  }
+  const el = document.getElementById('notation'); el.innerHTML = html;
+  el.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest' });
+}
+PM.mount((s) => {
+  const v = PM.view(s);
+  document.getElementById('board').innerHTML = PM.board(v);
+  const b = document.querySelector('#board .pm-badge'); if (b) b.style.background = css('--m-' + PM.move(s.ply).mark);
+  const top = s.flip ? 'w' : 'b';
+  const pl = (c) => `<span class="pip ${c}"></span>${c === 'w' ? G.white : G.black}<span class="acc">${PM.acc(c)}%</span>`;
+  document.getElementById('pTop').innerHTML = pl(top);
+  document.getElementById('pBot').innerHTML = pl(top === 'w' ? 'b' : 'w');
+  document.querySelector('[data-act=first]').disabled = document.querySelector('[data-act=prev]').disabled = s.ply === 0;
+  document.querySelector('[data-act=last]').disabled = document.querySelector('[data-act=next]').disabled = s.ply === N;
+  head(s); note(s); cols(s); notation(s);
+});
+</script>
+</body>
+</html>

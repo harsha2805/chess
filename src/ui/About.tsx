@@ -78,7 +78,7 @@ export function About() {
         <li>chess.js for the rules of the game (BSD).</li>
         <li>Chess pieces by Colin M. L. Burnett (GPL 2 or later).</li>
         <li>Opening names from the Lichess openings list (public domain).</li>
-        <li>The Literata and Hanken Grotesk typefaces (Open Font License).</li>
+        <li>The Overpass typeface (Open Font License).</li>
       </ul>
       <p>
         {APP_NAME} is free software under the GPL, version 3 or later. The{' '}

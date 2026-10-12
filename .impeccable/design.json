@@ -1,0 +1,900 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T17:55:19.845Z",
+  "title": "Design System: Postmortem",
+  "extensions": {
+    "colorMeta": {
+      "porcelain": {
+        "role": "primary",
+        "displayName": "Porcelain Enamel",
+        "canonical": "oklch(95.3% 0.013 86)",
+        "tonalRamp": [
+          "#0d0b07",
+          "#272520",
+          "#44423b",
+          "#64615a",
+          "#86827a",
+          "#a8a59d",
+          "#ccc9c1",
+          "#f1eee7"
+        ]
+      },
+      "midnight-enamel": {
+        "role": "primary",
+        "displayName": "Midnight Enamel",
+        "canonical": "oklch(21.3% 0.050 264)",
+        "tonalRamp": [
+          "#040a1a",
+          "#1b2539",
+          "#364259",
+          "#54617c",
+          "#7382a1",
+          "#96a5c3",
+          "#bbcae6",
+          "#e1efff"
+        ]
+      },
+      "enamel-panel": {
+        "role": "neutral",
+        "displayName": "Enamel Panel",
+        "canonical": "oklch(26.4% 0.077 265)",
+        "tonalRamp": [
+          "#030822",
+          "#172343",
+          "#314166",
+          "#4e608b",
+          "#6d81b1",
+          "#90a5d3",
+          "#b5c9f5",
+          "#dbefff"
+        ]
+      },
+      "enamel-raised": {
+        "role": "neutral",
+        "displayName": "Enamel Raised",
+        "canonical": "oklch(31.4% 0.089 265)",
+        "tonalRamp": [
+          "#020726",
+          "#142347",
+          "#2e406b",
+          "#4a6091",
+          "#6981b8",
+          "#8ca4da",
+          "#b1c9fc",
+          "#d8efff"
+        ]
+      },
+      "seam": {
+        "role": "neutral",
+        "displayName": "Seam",
+        "canonical": "oklch(37.9% 0.093 265)",
+        "tonalRamp": [
+          "#020727",
+          "#132249",
+          "#2d406d",
+          "#496093",
+          "#6881ba",
+          "#8ba4dc",
+          "#b1c9fe",
+          "#d7eeff"
+        ]
+      },
+      "seam-strong": {
+        "role": "neutral",
+        "displayName": "Strong Seam",
+        "canonical": "oklch(46.5% 0.105 266)",
+        "tonalRamp": [
+          "#02052b",
+          "#12214d",
+          "#2b3f72",
+          "#475f99",
+          "#6580c1",
+          "#89a4e3",
+          "#aec8ff",
+          "#d5eeff"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink Two",
+        "canonical": "oklch(86.4% 0.023 269)",
+        "tonalRamp": [
+          "#080b12",
+          "#21252e",
+          "#3e424d",
+          "#5c616e",
+          "#7d8291",
+          "#9fa5b3",
+          "#c4c9d7",
+          "#e9eefb"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink Three",
+        "canonical": "oklch(75.2% 0.044 268)",
+        "tonalRamp": [
+          "#060a19",
+          "#1e2436",
+          "#3a4157",
+          "#586179",
+          "#77829d",
+          "#9aa5bf",
+          "#bfc9e2",
+          "#e5eeff"
+        ]
+      },
+      "sign-2": {
+        "role": "neutral",
+        "displayName": "Sign Two",
+        "canonical": "oklch(90.7% 0.017 88)",
+        "tonalRamp": [
+          "#0d0b06",
+          "#28251e",
+          "#454239",
+          "#656157",
+          "#868277",
+          "#a9a59a",
+          "#cdc9bf",
+          "#f2eee5"
+        ]
+      },
+      "sign-line": {
+        "role": "neutral",
+        "displayName": "Sign Line",
+        "canonical": "oklch(86.4% 0.017 267)",
+        "tonalRamp": [
+          "#090b11",
+          "#22252c",
+          "#3e424a",
+          "#5d616b",
+          "#7e828d",
+          "#a0a5b0",
+          "#c5c9d3",
+          "#eaeef8"
+        ]
+      },
+      "sign-ink-2": {
+        "role": "neutral",
+        "displayName": "Sign Ink Two",
+        "canonical": "oklch(42.6% 0.068 268)",
+        "tonalRamp": [
+          "#040920",
+          "#1a233f",
+          "#354161",
+          "#526086",
+          "#7181ab",
+          "#94a4cd",
+          "#b9c8f0",
+          "#dfeeff"
+        ]
+      },
+      "band": {
+        "role": "neutral",
+        "displayName": "Band",
+        "canonical": "oklch(44.5% 0.068 268)",
+        "tonalRamp": [
+          "#040920",
+          "#1a2340",
+          "#354062",
+          "#526086",
+          "#7181ac",
+          "#94a4ce",
+          "#b9c8f0",
+          "#dfeeff"
+        ]
+      },
+      "focus": {
+        "role": "neutral",
+        "displayName": "Signal Amber",
+        "canonical": "oklch(79.5% 0.160 77)",
+        "tonalRamp": [
+          "#230000",
+          "#441400",
+          "#683200",
+          "#8e5100",
+          "#b57200",
+          "#d7970e",
+          "#fabd57",
+          "#ffe489"
+        ]
+      },
+      "danger": {
+        "role": "neutral",
+        "displayName": "Alarm",
+        "canonical": "oklch(73.1% 0.166 30)",
+        "tonalRamp": [
+          "#2e0000",
+          "#540000",
+          "#7d0f05",
+          "#a73224",
+          "#d35341",
+          "#f67c69",
+          "#ffa490",
+          "#ffcdb9"
+        ]
+      },
+      "danger-ground": {
+        "role": "neutral",
+        "displayName": "Alarm Ground",
+        "canonical": "oklch(26.7% 0.052 1)",
+        "tonalRamp": [
+          "#17040a",
+          "#361c24",
+          "#563840",
+          "#79565f",
+          "#9d7680",
+          "#c099a3",
+          "#e3bec7",
+          "#ffe4ed"
+        ]
+      },
+      "brilliant": {
+        "role": "tertiary",
+        "displayName": "Brilliant Cyan",
+        "canonical": "oklch(72.3% 0.122 215)",
+        "tonalRamp": [
+          "#001022",
+          "#002e43",
+          "#004e65",
+          "#00708a",
+          "#0093b0",
+          "#38b6d2",
+          "#6fdaf5",
+          "#9fffff"
+        ]
+      },
+      "great": {
+        "role": "tertiary",
+        "displayName": "Great Cobalt",
+        "canonical": "oklch(59.9% 0.195 262)",
+        "tonalRamp": [
+          "#010046",
+          "#00146e",
+          "#043699",
+          "#2058c6",
+          "#3d7bf4",
+          "#64a1ff",
+          "#8cc7ff",
+          "#b5eeff"
+        ]
+      },
+      "best": {
+        "role": "tertiary",
+        "displayName": "Best Green",
+        "canonical": "oklch(66.5% 0.156 152)",
+        "tonalRamp": [
+          "#001500",
+          "#003400",
+          "#005418",
+          "#007734",
+          "#0e9c51",
+          "#52be77",
+          "#80e29e",
+          "#adffc6"
+        ]
+      },
+      "excellent": {
+        "role": "tertiary",
+        "displayName": "Excellent Leaf",
+        "canonical": "oklch(76.4% 0.146 136)",
+        "tonalRamp": [
+          "#001200",
+          "#003000",
+          "#1c5000",
+          "#397213",
+          "#579535",
+          "#7db860",
+          "#a3dc89",
+          "#cbffb3"
+        ]
+      },
+      "good": {
+        "role": "tertiary",
+        "displayName": "Good Slate",
+        "canonical": "oklch(75.7% 0.030 266)",
+        "tonalRamp": [
+          "#070b15",
+          "#202531",
+          "#3b4250",
+          "#5a6172",
+          "#7a8295",
+          "#9da5b7",
+          "#c1c9db",
+          "#e7efff"
+        ]
+      },
+      "book": {
+        "role": "tertiary",
+        "displayName": "Book Brass",
+        "canonical": "oklch(73.9% 0.087 78)",
+        "tonalRamp": [
+          "#190600",
+          "#371f00",
+          "#583c05",
+          "#7b5b25",
+          "#9f7c42",
+          "#c19f6a",
+          "#e4c492",
+          "#ffeabb"
+        ]
+      },
+      "forced": {
+        "role": "tertiary",
+        "displayName": "Forced Steel",
+        "canonical": "oklch(62.7% 0.043 267)",
+        "tonalRamp": [
+          "#060a18",
+          "#1e2436",
+          "#394256",
+          "#576179",
+          "#77829d",
+          "#9aa5bf",
+          "#bfc9e2",
+          "#e5eeff"
+        ]
+      },
+      "inaccuracy": {
+        "role": "tertiary",
+        "displayName": "Inaccuracy Amber",
+        "canonical": "oklch(79.5% 0.160 77)",
+        "tonalRamp": [
+          "#230000",
+          "#441400",
+          "#683200",
+          "#8e5100",
+          "#b57200",
+          "#d7970e",
+          "#fabd57",
+          "#ffe489"
+        ]
+      },
+      "miss": {
+        "role": "tertiary",
+        "displayName": "Miss Magenta",
+        "canonical": "oklch(64.8% 0.178 344)",
+        "tonalRamp": [
+          "#280017",
+          "#4d0035",
+          "#750855",
+          "#9d2d77",
+          "#c74d9b",
+          "#eb76bd",
+          "#ff9fe1",
+          "#ffc8ff"
+        ]
+      },
+      "mistake": {
+        "role": "tertiary",
+        "displayName": "Mistake Orange",
+        "canonical": "oklch(70.3% 0.170 50)",
+        "tonalRamp": [
+          "#2c0000",
+          "#520000",
+          "#7a1b00",
+          "#a43c00",
+          "#ce5c00",
+          "#f1843e",
+          "#ffab6e",
+          "#ffd49b"
+        ]
+      },
+      "blunder": {
+        "role": "tertiary",
+        "displayName": "Blunder Scarlet",
+        "canonical": "oklch(62.2% 0.205 30)",
+        "tonalRamp": [
+          "#340000",
+          "#5d0000",
+          "#880000",
+          "#b51604",
+          "#e23e2b",
+          "#ff6d57",
+          "#ff9881",
+          "#ffc3ac"
+        ]
+      },
+      "sq-light": {
+        "role": "neutral",
+        "displayName": "Board Light",
+        "canonical": "oklch(91.9% 0.017 267)",
+        "tonalRamp": [
+          "#090b11",
+          "#22252c",
+          "#3e424a",
+          "#5d616b",
+          "#7e828d",
+          "#a1a5af",
+          "#c5c9d3",
+          "#eaeef8"
+        ]
+      },
+      "sq-dark": {
+        "role": "neutral",
+        "displayName": "Board Dark",
+        "canonical": "oklch(54.3% 0.072 264)",
+        "tonalRamp": [
+          "#030921",
+          "#172441",
+          "#324163",
+          "#4e6188",
+          "#6d82ae",
+          "#91a5d0",
+          "#b6c9f2",
+          "#dcefff"
+        ]
+      },
+      "sq-hl-light": {
+        "role": "neutral",
+        "displayName": "Last Move Light",
+        "canonical": "oklch(88.2% 0.100 88)",
+        "tonalRamp": [
+          "#170700",
+          "#352100",
+          "#553e00",
+          "#775e13",
+          "#9b7f34",
+          "#bda25f",
+          "#e0c788",
+          "#ffecb2"
+        ]
+      },
+      "sq-hl-dark": {
+        "role": "neutral",
+        "displayName": "Last Move Dark",
+        "canonical": "oklch(73.1% 0.115 85)",
+        "tonalRamp": [
+          "#1a0500",
+          "#391f00",
+          "#5a3c00",
+          "#7d5b00",
+          "#a27c1d",
+          "#c4a050",
+          "#e7c57c",
+          "#ffeba7"
+        ]
+      },
+      "day-panel": {
+        "role": "neutral",
+        "displayName": "Day Panel",
+        "canonical": "oklch(98.2% 0.007 88)",
+        "tonalRamp": [
+          "#0c0b09",
+          "#262522",
+          "#43423e",
+          "#63615d",
+          "#84827e",
+          "#a7a5a1",
+          "#cbc9c5",
+          "#f0eeea"
+        ],
+        "theme": "day"
+      },
+      "day-raised": {
+        "role": "neutral",
+        "displayName": "Day Raised",
+        "canonical": "oklch(90.8% 0.019 86)",
+        "tonalRamp": [
+          "#0e0b05",
+          "#28251d",
+          "#464238",
+          "#666156",
+          "#878276",
+          "#aaa499",
+          "#cec9be",
+          "#f3eee4"
+        ],
+        "theme": "day"
+      },
+      "day-seam": {
+        "role": "neutral",
+        "displayName": "Day Seam",
+        "canonical": "oklch(85.6% 0.023 87)",
+        "tonalRamp": [
+          "#0e0b04",
+          "#29251b",
+          "#474136",
+          "#666154",
+          "#888273",
+          "#aba496",
+          "#cfc9bb",
+          "#f4eee1"
+        ],
+        "theme": "day"
+      },
+      "day-seam-strong": {
+        "role": "neutral",
+        "displayName": "Day Seam Strong",
+        "canonical": "oklch(72.4% 0.030 86)",
+        "tonalRamp": [
+          "#0f0a03",
+          "#2a2418",
+          "#484132",
+          "#68604f",
+          "#8a826e",
+          "#ada492",
+          "#d0c8b7",
+          "#f5eedd"
+        ],
+        "theme": "day"
+      },
+      "day-ink-2": {
+        "role": "neutral",
+        "displayName": "Day Ink 2",
+        "canonical": "oklch(36.7% 0.068 267)",
+        "tonalRamp": [
+          "#040920",
+          "#192340",
+          "#344162",
+          "#516086",
+          "#7081ac",
+          "#94a4ce",
+          "#b8c9f0",
+          "#dfeeff"
+        ],
+        "theme": "day"
+      },
+      "day-ink-3": {
+        "role": "neutral",
+        "displayName": "Day Ink 3",
+        "canonical": "oklch(47.2% 0.064 268)",
+        "tonalRamp": [
+          "#04091f",
+          "#1a243e",
+          "#354160",
+          "#536084",
+          "#7281a9",
+          "#95a4cb",
+          "#bac9ee",
+          "#e0eeff"
+        ],
+        "theme": "day"
+      },
+      "day-sign-2": {
+        "role": "neutral",
+        "displayName": "Day Sign 2",
+        "canonical": "oklch(31.4% 0.089 265)",
+        "tonalRamp": [
+          "#020726",
+          "#142347",
+          "#2e406b",
+          "#4a6091",
+          "#6981b8",
+          "#8ca4da",
+          "#b1c9fc",
+          "#d8efff"
+        ],
+        "theme": "day"
+      },
+      "day-sign-line": {
+        "role": "neutral",
+        "displayName": "Day Sign Line",
+        "canonical": "oklch(40.5% 0.091 267)",
+        "tonalRamp": [
+          "#020726",
+          "#152248",
+          "#2f406c",
+          "#4c5f92",
+          "#6a80b9",
+          "#8da4db",
+          "#b2c8fd",
+          "#d9eeff"
+        ],
+        "theme": "day"
+      },
+      "day-sign-ink-2": {
+        "role": "neutral",
+        "displayName": "Day Sign Ink 2",
+        "canonical": "oklch(81.7% 0.037 268)",
+        "tonalRamp": [
+          "#070b17",
+          "#1f2534",
+          "#3b4253",
+          "#596175",
+          "#798299",
+          "#9ca5bb",
+          "#c0c9df",
+          "#e6eeff"
+        ],
+        "theme": "day"
+      },
+      "day-band": {
+        "role": "neutral",
+        "displayName": "Day Band",
+        "canonical": "oklch(66.5% 0.031 86)",
+        "tonalRamp": [
+          "#0f0a02",
+          "#2a2417",
+          "#484132",
+          "#68604f",
+          "#8a816e",
+          "#ada491",
+          "#d1c8b6",
+          "#f6eedd"
+        ],
+        "theme": "day"
+      },
+      "day-focus": {
+        "role": "neutral",
+        "displayName": "Day Focus",
+        "canonical": "oklch(64.3% 0.141 68)",
+        "tonalRamp": [
+          "#230000",
+          "#461200",
+          "#6a3000",
+          "#904f00",
+          "#b86f00",
+          "#da943e",
+          "#fdba6e",
+          "#ffe19c"
+        ],
+        "theme": "day"
+      },
+      "day-danger": {
+        "role": "neutral",
+        "displayName": "Day Danger",
+        "canonical": "oklch(51.2% 0.182 30)",
+        "tonalRamp": [
+          "#300000",
+          "#580000",
+          "#820000",
+          "#ad291c",
+          "#d94b3a",
+          "#fd7662",
+          "#ff9f8b",
+          "#ffc9b4"
+        ],
+        "theme": "day"
+      },
+      "day-danger-ground": {
+        "role": "neutral",
+        "displayName": "Day Danger Ground",
+        "canonical": "oklch(93.4% 0.027 28)",
+        "tonalRamp": [
+          "#130807",
+          "#2f211f",
+          "#4e3e3b",
+          "#6f5c59",
+          "#927d79",
+          "#b4a09c",
+          "#d8c4c1",
+          "#fdeae6"
+        ],
+        "theme": "day"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Home welcome headline only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles on Games, Insights and About."
+      },
+      "station": {
+        "displayName": "Station",
+        "purpose": "The move on the station sign."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "General text."
+      },
+      "body-sign": {
+        "displayName": "Sign Body",
+        "purpose": "The plain-language why on a station sign, held to 62ch."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Buttons and nav pills."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase column headings such as Moves and Summary."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-tip",
+        "value": "0 4px 12px rgb(0 0 0 / 0.3)",
+        "purpose": "Hover tooltips on the line map and charts only."
+      },
+      {
+        "name": "board-bullet",
+        "value": "0 0 0 3px #f3efe6, 0 2px 6px rgb(0 0 0 / 0.35)",
+        "purpose": "Mark bullet pinned to a board square."
+      },
+      {
+        "name": "seam-inset",
+        "value": "inset 0 0 0 1px var(--seam)",
+        "purpose": "Panel edge; the system draws edges, it does not cast shadows."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Ease-out for the you-are-here ring, eval bar and chevrons."
+      },
+      {
+        "name": "ring-slide",
+        "value": "transform 0.28s var(--ease)",
+        "purpose": "The ring sliding between stations on the line map."
+      },
+      {
+        "name": "state",
+        "value": "0.12s to 0.15s",
+        "purpose": "Hover colour changes on controls and rows."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "transition-duration: 0.01ms",
+        "purpose": "All motion collapses under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "480px"
+      },
+      {
+        "name": "strip-vertical",
+        "value": "639px (max)"
+      },
+      {
+        "name": "md",
+        "value": "720px"
+      },
+      {
+        "name": "review-two-column",
+        "value": "960px"
+      }
+    ],
+    "themes": {
+      "default": "night",
+      "day": {
+        "selector": ":root[data-theme='day']",
+        "note": "Ground becomes porcelain, signs and route become midnight enamel; mark fills unchanged. Applied before first paint in index.html from localStorage key postmortem-theme."
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Platform Button",
+      "kind": "button",
+      "refersTo": "button-platform",
+      "description": "Primary action: a porcelain pill.",
+      "html": "<button class=\"ds-btn\">Review games</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:9px 18px 7px;border:0;border-radius:999px;background:var(--sign,#f3efe6);color:var(--sign-ink,#0d1830);font-family:'Overpass',system-ui,sans-serif;font-weight:800;font-size:.9375rem;cursor:pointer;transition:transform .12s cubic-bezier(.16,1,.3,1),background-color .15s}.ds-btn:hover{background:var(--sign-2,#e5e0d4)}.ds-btn:active{transform:translateY(1px)}.ds-btn:focus-visible{outline:3px solid var(--focus,#f4ad1f);outline-offset:2px}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Secondary action: a pill drawn with a 2px inset ring.",
+      "html": "<button class=\"ds-btn-quiet\">Paste PGN</button>",
+      "css": ".ds-btn-quiet{display:inline-flex;align-items:center;min-height:42px;padding:9px 18px 7px;border:0;border-radius:999px;background:transparent;color:var(--ink,#f3efe6);box-shadow:inset 0 0 0 2px var(--seam-strong,#3e5694);font-family:'Overpass',system-ui,sans-serif;font-weight:800;font-size:.9375rem;cursor:pointer}.ds-btn-quiet:hover{background:var(--ground-2,#13224a);box-shadow:inset 0 0 0 2px var(--ink-3,#a3aecb)}.ds-btn-quiet:focus-visible{outline:3px solid var(--focus,#f4ad1f);outline-offset:2px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Enamel field with a 2px seam border.",
+      "html": "<input class=\"ds-input\" placeholder=\"chess.com or Lichess username\">",
+      "css": ".ds-input{min-height:44px;padding:9px 14px 7px;border:2px solid var(--seam,#2a3f73);border-radius:8px;background:var(--ground-2,#13224a);color:var(--ink,#f3efe6);font-family:'Overpass',system-ui,sans-serif;font-size:1rem;transition:border-color .15s}.ds-input::placeholder{color:var(--ink-3,#a3aecb)}.ds-input:hover{border-color:var(--seam-strong,#3e5694)}.ds-input:focus-visible{outline:3px solid var(--focus,#f4ad1f);outline-offset:2px}"
+    },
+    {
+      "name": "Pill Nav",
+      "kind": "nav",
+      "refersTo": "nav-pill",
+      "description": "Topbar nav: pills with a round stop; the current page is a porcelain plate with a scarlet stop.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\" aria-current=\"page\"><i></i>Games</a><a href=\"#\"><i></i>Insights</a><a href=\"#\"><i></i>How it works</a></nav>",
+      "css": ".ds-nav{display:flex;gap:4px;font-family:'Overpass',system-ui,sans-serif;}.ds-nav a{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 6px;border-radius:999px;color:var(--ink-2,#ccd2e2);text-decoration:none;font-size:.9375rem;font-weight:700;transition:background-color .15s,color .15s}.ds-nav a i{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.6}.ds-nav a:hover{color:var(--ink,#f3efe6);background:var(--ground-2,#13224a)}.ds-nav a[aria-current=page]{background:var(--sign,#f3efe6);color:var(--sign-ink,#0d1830)}.ds-nav a[aria-current=page] i{background:var(--m-blunder,#e8432f);opacity:1}.ds-nav a:focus-visible{outline:3px solid var(--focus,#f4ad1f);outline-offset:2px}"
+    },
+    {
+      "name": "Mark Bullet",
+      "kind": "chip",
+      "refersTo": "mark-bullet",
+      "description": "The only carrier of mark colour: a round bullet with its glyph.",
+      "html": "<span class=\"ds-tag ds-blunder\" role=\"img\" aria-label=\"Blunder\">??</span> <span class=\"ds-tag ds-inacc\" role=\"img\" aria-label=\"Inaccuracy\">?!</span> <span class=\"ds-tag ds-brill\" role=\"img\" aria-label=\"Brilliant\">!!</span> <span class=\"ds-tag ds-great\" role=\"img\" aria-label=\"Great\">!</span>",
+      "css": ".ds-tag{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;font-family:'Overpass',system-ui,sans-serif;font-size:.6875rem;font-weight:900;line-height:1;letter-spacing:-.04em;color:#fff}.ds-blunder{background:var(--m-blunder,#e8432f)}.ds-inacc{background:var(--m-inaccuracy,#f4ad1f);color:#0d1830}.ds-brill{background:var(--m-brilliant,#22b8d6)}.ds-great{background:var(--m-great,#3a78f2)}"
+    },
+    {
+      "name": "Station Sign",
+      "kind": "card",
+      "refersTo": "station-sign",
+      "description": "The move you are on: a porcelain plate with bullet, move, mark, eval tile and the why. No base band.",
+      "html": "<section class=\"ds-sign\"><div class=\"ds-sign-head\"><span class=\"ds-sign-tag\">??</span><div><b class=\"ds-sign-move\">23. Qxb7</b><span class=\"ds-sign-mark\">Blunder · Middlegame</span></div><span class=\"ds-sign-eval\">-3.4</span></div><p>The rook on a8 is left to be taken.</p></section>",
+      "css": ".ds-sign{padding:20px 22px 24px;background:var(--sign,#f3efe6);color:var(--sign-ink,#0d1830);border-radius:12px;font-family:'Overpass',system-ui,sans-serif;max-width:460px}.ds-sign-head{display:flex;align-items:center;gap:14px}.ds-sign-tag{display:grid;place-items:center;width:46px;height:46px;border-radius:50%;background:var(--m-blunder,#e8432f);color:#fff;font-weight:900;font-size:1.0625rem}.ds-sign-move{display:block;font-size:2rem;font-weight:900;line-height:1;letter-spacing:-.02em}.ds-sign-mark{display:block;margin-top:5px;font-weight:700;font-size:.9375rem;color:var(--sign-ink-2,#3f4d74)}.ds-sign-eval{margin-left:auto;align-self:flex-start;padding:7px 11px 5px;border-radius:7px;background:var(--sign-ink,#0d1830);color:var(--sign,#f3efe6);font-weight:900;font-size:1.125rem;font-variant-numeric:tabular-nums}.ds-sign p{margin:14px 0 0;font-size:1.0625rem;line-height:1.5}"
+    },
+    {
+      "name": "Station List",
+      "kind": "custom",
+      "refersTo": "station-stop-current",
+      "description": "Moves as stops on a porcelain route; the current move is a porcelain plate.",
+      "html": "<div class=\"ds-stations\"><div class=\"ds-row\"><span class=\"ds-no\">12</span><button class=\"ds-mv\">Nf3</button><button class=\"ds-mv\" aria-current=\"true\">Bxe4</button></div><div class=\"ds-row\"><span class=\"ds-no\">13</span><button class=\"ds-mv\">O-O</button><button class=\"ds-mv\">Qd7</button></div></div>",
+      "css": ".ds-stations{padding-left:6px;border-left:6px solid var(--route,#f3efe6);border-radius:3px;font-family:'Overpass',system-ui,sans-serif;color:var(--ink,#f3efe6);max-width:320px}.ds-row{display:grid;grid-template-columns:38px 1fr 1fr;align-items:center}.ds-no{position:relative;padding-left:8px;color:var(--ink-3,#a3aecb);font-weight:700;font-size:.8125rem;font-variant-numeric:tabular-nums}.ds-no::before{content:'';position:absolute;left:-12px;top:50%;width:11px;height:3px;margin-top:-2px;background:var(--route,#f3efe6)}.ds-mv{min-height:34px;padding:5px 10px 3px;border:0;border-radius:7px;background:none;color:inherit;font:inherit;font-weight:700;font-size:.9375rem;text-align:left;cursor:pointer;transition:background-color .12s}.ds-mv:hover{background:var(--ground-3,#1b2e5e)}.ds-mv[aria-current=true]{background:var(--sign,#f3efe6);color:var(--sign-ink,#0d1830)}.ds-mv:focus-visible{outline:3px solid var(--focus,#f4ad1f);outline-offset:2px}"
+    },
+    {
+      "name": "Station Strip",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Insights figures as stops on one route, never stat cards.",
+      "html": "<div class=\"ds-figs\"><div class=\"ds-fig\"><div class=\"ds-l\">Average accuracy</div><div class=\"ds-v\">78.4<small>%</small></div></div><div class=\"ds-fig\"><div class=\"ds-l\">Results</div><div class=\"ds-v\">6–3–1</div></div><div class=\"ds-fig\"><div class=\"ds-l\">Errors per game</div><div class=\"ds-v\">2.1</div></div></div>",
+      "css": ".ds-figs{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:14px 24px;padding-top:26px;font-family:'Overpass',system-ui,sans-serif;color:var(--ink,#f3efe6)}.ds-figs::before{content:'';position:absolute;left:7px;right:7px;top:7px;height:4px;border-radius:2px;background:var(--route-under,#2a3f73)}.ds-fig{position:relative}.ds-fig::before{content:'';position:absolute;left:0;top:-26px;width:18px;height:18px;border-radius:50%;background:var(--ground,#0d1830);box-shadow:inset 0 0 0 4px var(--route,#f3efe6)}.ds-l{font-size:.875rem;font-weight:700;color:var(--ink-3,#a3aecb)}.ds-v{margin-top:2px;font-size:1.375rem;font-weight:900;font-variant-numeric:tabular-nums}.ds-v small{font-size:.9375rem;font-weight:700;color:var(--ink-3,#a3aecb)}"
+    },
+    {
+      "name": "Segmented",
+      "kind": "chip",
+      "refersTo": "nav-pill-current",
+      "description": "Two route pills; the checked one is a porcelain plate.",
+      "html": "<div class=\"ds-seg\"><label><input type=\"radio\" name=\"s\" checked><span>White</span></label><label><input type=\"radio\" name=\"s\"><span>Black</span></label></div>",
+      "css": ".ds-seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--ground-2,#13224a);box-shadow:inset 0 0 0 2px var(--seam,#2a3f73);font-family:'Overpass',system-ui,sans-serif;}.ds-seg label{position:relative;cursor:pointer}.ds-seg input{position:absolute;opacity:0}.ds-seg span{display:block;padding:7px 14px 5px;border-radius:999px;font-weight:700;font-size:.875rem;color:var(--ink-2,#ccd2e2);transition:background-color .15s,color .15s}.ds-seg input:checked+span{background:var(--sign,#f3efe6);color:var(--sign-ink,#0d1830)}.ds-seg input:focus-visible+span{outline:3px solid var(--focus,#f4ad1f);outline-offset:1px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Line",
+    "overview": "A game is a journey on one transit line. Phases are fare zones, marked moves are interchanges, and the move you are on is a station sign. The whole app is drawn in that grammar: a midnight enamel ground, porcelain enamel signs that carry the content, a single porcelain route that threads through the review, the games list and Insights, and round route bullets as the only place colour speaks.\n\nDensity is that of a good transit map: few materials, heavy confident labels, everything else quiet. The ground recedes, the sign in front of you is the brightest object on screen, and the route ties the parts together. Night is the default. Day is the same line in daylight: the ground turns porcelain and the signs turn to midnight enamel, by swapping roles rather than inventing a second palette.\n\nThe system rejects the category default it replaced (a dark slate panel with an eval bar and a move table), the sterile dashboard, flash, and clutter. It must not resemble Chess.com or Lichess.",
+    "keyCharacteristics": [
+      "Two materials only: midnight enamel ground and porcelain enamel signs, swapped in day.",
+      "One porcelain route line connects the move list, the line map, the games list and the Insights figures.",
+      "Mark colours appear only on round route bullets, always with a glyph.",
+      "One face, Overpass, set heavy (800 to 900) for signs and regular for prose.",
+      "Controls are rounded platform buttons and pills; containers are 12px enamel plates.",
+      "Flat: depth comes from tone and 1px seams, not shadow."
+    ],
+    "rules": [
+      {
+        "name": "The Bullet Quarantine Rule",
+        "body": "Mark colours live only on round route bullets, and every bullet carries its glyph (!!, !, star, check, dot, book, square, ?!, cross, ?, ??). Never as text colour, never as a band, bar, border or fill behind text. The one exemption is the brand roundel (scarlet ring, cobalt bar) and its echo on the current nav stop.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Materials Rule",
+        "body": "Every surface is either ground or sign. Day swaps them; it does not add a third.",
+        "section": "colors"
+      },
+      {
+        "name": "The Porcelain Route Rule",
+        "body": "The route is one porcelain line (midnight in day), never coloured by result or mark. Emphasis on a route is porcelain over a seam under-stroke; de-emphasis is seam-strong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Heavy Sign Rule",
+        "body": "Anything you read at a glance (move, eval, accuracy, figure value) is 900 with tabular numerals. Prose stays at 400.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Face Rule",
+        "body": "Overpass only. No second display face, no monospace for notation.",
+        "section": "typography"
+      },
+      {
+        "name": "The Seam Not Shadow Rule",
+        "body": "Panels, signs, cards and buttons cast no shadow. Separation is a 1px seam or a change of enamel.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do put the thing you are on in porcelain: the current move, page, stop and segmented option.",
+      "Do carry every move mark as a round bullet with its glyph, so quality never rests on colour alone.",
+      "Do run lists and figure groups along a route line rather than boxing them.",
+      "Do separate panels with a 1px inset seam and shift enamel tone for hover.",
+      "Do set glanceable numbers in 900 with tabular numerals.",
+      "Do build day by swapping ground and sign, keeping mark fills unchanged."
+    ],
+    "donts": [
+      "Don't use a mark colour as text colour, a band, a bar, a border or a background behind text.",
+      "Don't put a coloured base band, stripe or edge on a sign.",
+      "Don't colour the route by result or mark; it is porcelain (midnight in day).",
+      "Don't render Insights figures as stat cards.",
+      "Don't add drop shadows to signs, panels or buttons.",
+      "Don't introduce a second typeface.",
+      "Don't borrow Chess.com or Lichess colours, layouts or board themes."
+    ]
+  }
+}

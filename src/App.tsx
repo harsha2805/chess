@@ -5,11 +5,14 @@ import { Home } from './ui/Home';
 import { Insights } from './ui/Insights';
 import { Report } from './ui/Report';
 import { Review } from './ui/Review';
+import { IconMoon, IconSun } from './ui/icons';
 import { href, useRoute } from './ui/router';
+import { useTheme } from './ui/theme';
 
 export function App() {
   const route = useRoute();
   const [section, a, b] = route;
+  const [theme, toggleTheme] = useTheme();
 
   let page;
   let title = `${APP_NAME}: free chess game review`;
@@ -41,20 +44,31 @@ export function App() {
     <div className={section === 'game' ? 'shell is-review' : 'shell'}>
       <header className="topbar">
         <div className="topbar-inner">
-          <a className="brand" href={href()}>
-            {APP_NAME}
-            <span className="brand-mark" aria-hidden="true">
-              !!
+          <a className="brand" href={href()} aria-label={APP_NAME}>
+            <span className="roundel" aria-hidden="true">
+              <b>!!</b>
             </span>
+            {APP_NAME}
           </a>
           <nav className="nav" aria-label="Main">
             <a href={href()} aria-current={!section || section === 'game' ? 'page' : undefined}>
+              <i aria-hidden="true" />
               Games
             </a>
             <a href={href('insights')} aria-current={section === 'insights' ? 'page' : undefined}>
+              <i aria-hidden="true" />
               Insights
             </a>
           </nav>
+          <button
+            className="theme-btn"
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === 'night' ? 'Switch to day colours' : 'Switch to night colours'}
+            title={theme === 'night' ? 'Day colours' : 'Night colours'}
+          >
+            {theme === 'night' ? <IconSun /> : <IconMoon />}
+          </button>
         </div>
       </header>
       <main className="page">{page}</main>

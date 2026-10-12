@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tab Board · Postmortem sample</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Archivo:wght@500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --hue: #f0c419; --hue-ink: #3b2f05;
+    --ink: #17140f; --ink-2: #4a4337; --leaf: rgb(255 255 255 / .8); --leaf-solid: #fbf9f3;
+    --vermilion: #e2371b;
+    --serif: 'EB Garamond', Georgia, serif; --sans: 'Archivo', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  body[data-phase='opening'] { --hue: #f0c419; --hue-ink: #3b2f05; }
+  body[data-phase='middlegame'] { --hue: #e0622a; --hue-ink: #3a1405; }
+  body[data-phase='endgame'] { --hue: #12857f; --hue-ink: #032a28; }
+  * { box-sizing: border-box; }
+  html { background: #17140f; }
+  body { margin: 0; min-height: 100vh; background: var(--hue); color: var(--ink); font-family: var(--serif); transition: background-color 90ms steps(2); }
+  ::selection { background: var(--ink); color: var(--hue); }
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  .page { display: grid; grid-template-columns: minmax(0, 1fr) 132px; min-height: 100vh; }
+  .main { padding: 26px 30px 48px 34px; }
+  .bar { display: flex; align-items: center; gap: 22px; margin-bottom: 26px; }
+  .word { font-family: var(--sans); font-weight: 900; font-size: 1.5rem; letter-spacing: -0.03em; color: var(--ink); text-decoration: none; }
+  .word span { font-family: var(--mono); font-size: 0.9rem; background: var(--ink); color: var(--hue); padding: 2px 6px; margin-left: 8px; vertical-align: 3px; }
+  .nav { display: flex; gap: 4px; }
+  .nav a { font-family: var(--sans); font-weight: 700; font-size: 0.9375rem; color: var(--ink); text-decoration: none; padding: 7px 12px; border: 2px solid var(--ink); }
+  .nav a[aria-current] { background: var(--ink); color: var(--hue); }
+  .head { font-family: var(--sans); margin-left: auto; text-align: right; }
+  .head h1 { margin: 0; font-size: 1.125rem; font-weight: 800; letter-spacing: -0.01em; }
+  .head div { font-size: 0.875rem; font-weight: 500; color: var(--hue-ink); }
+
+  .spread { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 26px; align-items: start; }
+
+  /* A punched acetate leaf hinged above the board. */
+  .leaf { position: relative; background: var(--leaf); padding: 18px 20px 18px 46px; box-shadow: 3px 3px 0 rgb(0 0 0 / .18); }
+  .leaf::before, .leaf::after { content: ''; position: absolute; left: 15px; width: 14px; height: 14px; border-radius: 50%; background: var(--hue); box-shadow: inset 1px 1px 0 rgb(0 0 0 / .25); transition: background-color 90ms steps(2); }
+  .leaf::before { top: 22px; } .leaf::after { bottom: 22px; }
+  .leaf h2 { font-family: var(--sans); font-size: 0.75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 10px; color: var(--ink-2); }
+
+  .boardleaf { padding: 14px 14px 14px 46px; }
+  .player { display: flex; align-items: baseline; gap: 10px; font-family: var(--sans); font-weight: 800; font-size: 0.9375rem; padding: 2px 0 8px; }
+  .player.b { padding: 8px 0 2px; }
+  .player .acc { margin-left: auto; font-family: var(--mono); font-weight: 700; }
+  .player .side { font-family: var(--mono); font-size: 0.75rem; font-weight: 500; color: var(--ink-2); }
+  .pm-board { display: grid; aspect-ratio: 1; position: relative; outline: 2px solid var(--ink); }
+  .sq { position: relative; display: grid; place-items: center; }
+  .sq.l { background: #f7f3e8; } .sq.d { background: color-mix(in srgb, var(--hue) 62%, #2b2116); transition: background-color 90ms steps(2); }
+  .sq.hl::after { content: ''; position: absolute; inset: 0; background: rgb(23 20 15 / .22); }
+  .sq img { width: 88%; height: 88%; position: relative; z-index: 1; }
+  .co { position: absolute; font-family: var(--mono); font-size: 0.6rem; font-weight: 700; z-index: 1; }
+  .co.r { top: 2px; left: 3px; } .co.f { bottom: 1px; right: 3px; }
+  .sq.l .co { color: #6b5f4c; } .sq.d .co { color: #fff8; }
+  .pm-badge { position: absolute; top: -8px; right: -8px; z-index: 3; min-width: 26px; height: 22px; padding: 0 5px; display: grid; place-items: center; font-family: var(--mono); font-weight: 700; font-size: 0.8rem; background: var(--ink); color: #fff; }
+  .pm-badge svg { width: 13px; height: 13px; }
+  .pm-badge.m-inaccuracy, .pm-badge.m-mistake, .pm-badge.m-blunder, .pm-badge.m-miss { background: var(--vermilion); }
+  .pm-arrow { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--ink); z-index: 2; pointer-events: none; }
+  .controls { display: flex; gap: 6px; margin-top: 12px; }
+  .controls button { font-family: var(--sans); font-weight: 800; font-size: 0.875rem; padding: 8px 14px; border: 2px solid var(--ink); background: transparent; }
+  .controls button:hover { background: var(--ink); color: var(--hue); }
+  .controls button:disabled { opacity: .3; pointer-events: none; }
+  .controls .sp { flex: 1; }
+
+  /* Commentary leaf: heads hang in the margin column. */
+  .note .row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 0 18px; }
+  .note .hang { font-family: var(--sans); font-size: 0.75rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); padding-top: 6px; }
+  .note .san { font-family: var(--sans); font-weight: 900; font-size: 2.6rem; letter-spacing: -0.03em; line-height: 1; display: flex; align-items: center; gap: 12px; }
+  .note .san .tagbig { font-family: var(--mono); font-size: 1rem; padding: 4px 8px; background: var(--ink); color: #fff; letter-spacing: 0; }
+  .note .san .tagbig.err { background: var(--vermilion); }
+  .note .san .tagbig svg { width: 16px; height: 16px; vertical-align: -2px; }
+  .note .kind { font-family: var(--sans); font-weight: 700; font-size: 0.9375rem; margin-top: 6px; }
+  .note .kind .ev { font-family: var(--mono); margin-left: 10px; padding: 1px 6px; border: 1.5px solid var(--ink); font-size: 0.8125rem; }
+  .note p { font-size: 1.0625rem; line-height: 1.53; margin: 12px 0 0; max-width: 62ch; }
+  .note p.lead { font-size: 1.25rem; font-style: italic; }
+  .note .line { font-family: var(--mono); font-size: 0.875rem; margin-top: 12px; }
+  .note .line button { font-family: var(--sans); font-weight: 800; font-size: 0.8125rem; border: 2px solid var(--ink); background: transparent; padding: 4px 10px; margin-left: 10px; }
+  .note .line button:hover { background: var(--ink); color: #fff; }
+  .errata { position: relative; margin-top: 16px; margin-left: -8px; background: var(--vermilion); color: #fff; padding: 10px 14px 10px 16px; font-family: var(--sans); font-weight: 700; font-size: 0.9375rem; transform: rotate(-0.6deg); box-shadow: 2px 2px 0 rgb(0 0 0 / .2); }
+  .errata b { font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: 0.75rem; margin-right: 8px; }
+
+  .stack { display: grid; gap: 18px; }
+  .graph svg { width: 100%; height: 120px; display: block; }
+  .notation { font-family: var(--mono); font-size: 0.9rem; line-height: 2; max-height: 200px; overflow: auto; scrollbar-color: var(--ink-2) transparent; }
+  .notation .no { color: var(--ink-2); margin-right: 4px; }
+  .notation .mv { border: 0; background: none; padding: 1px 4px; font-family: var(--mono); font-weight: 500; }
+  .notation .mv:hover { background: rgb(0 0 0 / .08); }
+  .notation .mv[aria-current] { background: var(--ink); color: #fff; }
+  .notation .sx { font-weight: 700; }
+  .notation .sx.err { color: var(--vermilion); }
+  .notation .mv[aria-current] .sx.err { color: #ff9b85; }
+
+  .tally { display: grid; grid-template-columns: auto 1fr 1fr; gap: 4px 16px; font-family: var(--sans); font-size: 0.875rem; }
+  .tally .h { font-weight: 800; }
+  .tally .n { font-family: var(--mono); text-align: right; }
+
+  /* The stepped tab rail down the fore edge. */
+  .rail { display: flex; flex-direction: column; padding-top: 120px; gap: 0; position: sticky; top: 0; height: 100vh; }
+  .tab { position: relative; border: 0; text-align: left; padding: 14px 12px; font-family: var(--sans); font-weight: 800; font-size: 0.8125rem; letter-spacing: .04em; text-transform: uppercase; color: rgb(0 0 0 / .78); display: flex; flex-direction: column; justify-content: space-between; margin-left: 22px; transition: margin 90ms steps(2); }
+  .tab small { font-family: var(--mono); font-weight: 500; text-transform: none; letter-spacing: 0; font-size: 0.75rem; }
+  .tab[data-ph='opening'] { background: #f0c419; } .tab[data-ph='middlegame'] { background: #e0622a; } .tab[data-ph='endgame'] { background: #12857f; color: #fff; }
+  .tab[aria-current] { margin-left: 0; box-shadow: -4px 0 0 var(--ink); }
+  .tab .cur { position: absolute; left: 0; right: 0; height: 3px; background: var(--ink); }
+
+  @media (max-width: 980px) {
+    .page { grid-template-columns: minmax(0, 1fr); }
+    .rail { position: static; height: auto; flex-direction: row; padding: 0 16px; order: -1; }
+    .tab { margin-left: 0; margin-top: 10px; flex: 1 1 0; min-height: 0 !important; height: 64px !important; padding: 10px; }
+    .tab[aria-current] { margin-top: 0; box-shadow: 0 4px 0 var(--ink); }
+    .tab .cur { display: none; }
+    .main { padding: 16px 16px 40px; }
+    .bar { flex-wrap: wrap; gap: 12px; }
+    .head { margin-left: 0; text-align: left; width: 100%; }
+    .spread { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .controls { flex-wrap: wrap; }
+    .leaf { padding-left: 38px; } .leaf::before, .leaf::after { left: 12px; }
+    .note .row { grid-template-columns: 1fr; }
+    .note .hang { padding: 0 0 4px; }
+    .note .san { font-size: 2rem; }
+  }
+</style>
+</head>
+<body data-phase="middlegame">
+<div class="page">
+  <div class="main">
+    <header class="bar">
+      <a class="word" href="#">Postmortem<span>!!</span></a>
+      <nav class="nav" aria-label="Main"><a href="#" aria-current="page">Games</a><a href="#">Insights</a></nav>
+      <div class="head"><h1>Morphy – Duke Karl / Count Isouard</h1><div>1–0 · Paris 1858 · C41 Philidor Defense</div></div>
+    </header>
+    <div class="spread">
+      <div class="stack">
+        <div class="leaf boardleaf">
+          <div class="player" id="pTop"></div>
+          <div id="board"></div>
+          <div class="player b" id="pBot"></div>
+        </div>
+        <div class="controls">
+          <button data-act="first">Start</button><button data-act="prev">← Back</button><button data-act="next">Next →</button><button data-act="last">End</button>
+          <span class="sp"></span><button data-act="flip">Turn board (F)</button>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="leaf note" id="note" aria-live="polite"></div>
+        <div class="leaf graph"><h2>Winning chances, White above the line</h2><svg id="graph" viewBox="0 0 600 120" preserveAspectRatio="none"></svg></div>
+        <div class="leaf"><h2>Moves</h2><div class="notation" id="notation"></div></div>
+        <div class="leaf"><h2>Tally</h2><div class="tally" id="tally"></div></div>
+      </div>
+    </div>
+  </div>
+  <nav class="rail" id="rail" aria-label="Game phases"></nav>
+</div>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+const { G, N, GLYPH, LABEL, ERRORS } = PM;
+const phases = ['opening', 'middlegame', 'endgame'].map((ph) => {
+  const ms = G.moves.filter((m) => m.phase === ph);
+  return { ph, first: ms[0].ply, last: ms[ms.length - 1].ply, n: ms.length };
+});
+function rail(s) {
+  const cur = s.ply ? PM.move(s.ply).phase : 'opening';
+  const total = 560;
+  document.getElementById('rail').innerHTML = phases.map((p) => {
+    const h = Math.max(70, p.n / N * total);
+    const a = PM.move(p.first), b = PM.move(p.last);
+    return `<button class="tab" data-ph="${p.ph}" data-ply="${p.first}" style="min-height:${h}px" ${cur === p.ph ? 'aria-current="true"' : ''}><span>${p.ph}</span><small>${PM.label(a)} – ${PM.label(b)}</small></button>`;
+  }).join('');
+  document.body.dataset.phase = cur;
+}
+function player(c) { const p = c === 'w' ? G.white : G.black; return `<span>${p}</span><span class="side">${c === 'w' ? 'White' : 'Black'}</span><span class="acc">${PM.acc(c)}%</span>`; }
+function note(s) {
+  const m = PM.move(s.ply), el = document.getElementById('note');
+  if (!m) { el.innerHTML = `<div class="row"><div class="hang">Start</div><div><div class="san">Starting position</div><p>White played at ${PM.acc('w')}% accuracy and Black at ${PM.acc('b')}%. Step through with the arrow keys, or open a phase from the tabs.</p></div></div>`; return; }
+  const err = ERRORS.includes(m.mark);
+  const tag = `<span class="tagbig ${err ? 'err' : ''}">${GLYPH[m.mark]}</span>`;
+  const line = m.best ? `<div class="line">Better was ${PM.lineText(m.ply, m.best.pv)} <button data-act="best">${s.showBest ? 'Back to the move played' : 'Show on the board'}</button></div>` : '';
+  const errata = err && m.best ? `<div class="errata"><b>Errata</b>${PM.label(m)}${m.suffix} should read ${PM.moveNo(m)}${m.best.san}.</div>` : '';
+  el.innerHTML = `<div class="row"><div class="hang">Move ${Math.ceil(m.ply / 2)}<br>${m.color === 'w' ? 'White' : 'Black'}</div><div>
+    <div class="san">${PM.label(m)}${tag}</div><div class="kind">${LABEL[m.mark]}<span class="ev">${m.eval}</span></div>
+    <p class="lead">${m.lead}</p>${m.notes.map((n) => `<p>${n}</p>`).join('')}${line}${errata}</div></div>`;
+}
+function graph(s) {
+  const pts = PM.points(600, 120);
+  const d = 'M' + pts.map((p) => p.join(',')).join(' L');
+  const x = pts[s.ply][0];
+  const marks = pts.map(([px, py], i) => { const m = PM.move(i); return m && (ERRORS.includes(m.mark) || m.mark === 'brilliant') ? `<rect x="${px - 3}" y="${py - 3}" width="6" height="6" fill="${ERRORS.includes(m.mark) ? '#e2371b' : '#17140f'}" data-ply="${i}" style="cursor:pointer"/>` : ''; }).join('');
+  const hits = pts.map(([px], i) => `<rect x="${px - 300 / N}" y="0" width="${600 / N}" height="120" fill="transparent" data-ply="${i}" style="cursor:pointer"/>`).join('');
+  document.getElementById('graph').innerHTML = `<rect width="600" height="120" fill="none"/><path d="${d} L600,120 L0,120 Z" fill="rgb(23 20 15 / .12)"/><line x1="0" x2="600" y1="60" y2="60" stroke="#17140f" stroke-dasharray="2 4"/><path d="${d}" fill="none" stroke="#17140f" stroke-width="2"/>${hits}<line x1="${x}" x2="${x}" y1="0" y2="120" stroke="#17140f" stroke-width="2"/>${marks}`;
+}
+function notation(s) {
+  let html = '';
+  G.moves.forEach((m) => {
+    if (m.color === 'w') html += `<span class="no">${Math.ceil(m.ply / 2)}.</span>`;
+    html += `<button class="mv" data-ply="${m.ply}" ${s.ply === m.ply ? 'aria-current="true"' : ''}>${m.san}${m.suffix ? `<span class="sx ${ERRORS.includes(m.mark) ? 'err' : ''}">${m.suffix}</span>` : ''}</button> `;
+  });
+  const el = document.getElementById('notation'); el.innerHTML = html + ' 1–0';
+  el.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest' });
+}
+function tally() {
+  const w = PM.counts('w'), b = PM.counts('b');
+  const keys = ['brilliant', 'great', 'best', 'excellent', 'book', 'forced', 'inaccuracy', 'mistake'].filter((k) => w[k] || b[k]);
+  document.getElementById('tally').innerHTML = `<span></span><span class="h n">Morphy</span><span class="h n">Duke & Count</span>` + keys.map((k) => `<span>${LABEL[k]}</span><span class="n">${w[k] || '·'}</span><span class="n">${b[k] || '·'}</span>`).join('');
+}
+PM.mount((s) => {
+  const top = s.flip ? 'w' : 'b';
+  document.getElementById('pTop').innerHTML = player(top);
+  document.getElementById('pBot').innerHTML = player(top === 'w' ? 'b' : 'w');
+  document.getElementById('board').innerHTML = PM.board(PM.view(s));
+  document.querySelector('[data-act=first]').disabled = document.querySelector('[data-act=prev]').disabled = s.ply === 0;
+  document.querySelector('[data-act=last]').disabled = document.querySelector('[data-act=next]').disabled = s.ply === N;
+  rail(s); note(s); graph(s); notation(s);
+});
+tally();
+</script>
+</body>
+</html>

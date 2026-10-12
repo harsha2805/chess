@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Line · Postmortem sample</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --enamel: #0d1830; --enamel-2: #13224a; --enamel-3: #1b2e5e; --seam: #2a3f73;
+    --porcelain: #f3efe6; --porcelain-2: #c9cfdf; --porcelain-3: #93a0bf; --ink: #0d1830;
+    --scarlet: #e8432f; --cobalt: #3a78f2; --amber: #f4ad1f; --green: #2fae62;
+    --m-brilliant: #22b8d6; --m-great: #3a78f2; --m-best: #2fae62; --m-excellent: #86c766; --m-good: #a7b0c4;
+    --m-book: #c9a46a; --m-forced: #7d88a3; --m-inaccuracy: #f4ad1f; --m-miss: #d65aa8; --m-mistake: #f07a28; --m-blunder: #e8432f;
+    --sq-l: #dfe4f0; --sq-d: #5b6f9a;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--enamel); }
+  body { margin: 0; font-family: 'Overpass', system-ui, sans-serif; color: var(--porcelain); background: var(--enamel); font-feature-settings: 'tnum'; }
+  ::selection { background: var(--amber); color: var(--ink); }
+  :focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  /* Top bar: a station name frieze. */
+  .bar { display: flex; align-items: center; gap: 28px; padding: 0 28px; height: 64px; border-bottom: 1px solid var(--seam); }
+  .logo { display: flex; align-items: center; gap: 12px; font-weight: 900; font-size: 1.25rem; letter-spacing: -0.01em; color: var(--porcelain); text-decoration: none; }
+  .roundel { width: 34px; height: 34px; border-radius: 50%; border: 5px solid var(--scarlet); display: grid; place-items: center; position: relative; }
+  .roundel::before { content: ''; position: absolute; left: -9px; right: -9px; height: 9px; background: var(--cobalt); top: 50%; transform: translateY(-50%); }
+  .roundel b { position: relative; font-size: 0.7rem; font-weight: 900; color: var(--porcelain); }
+  .nav { display: flex; gap: 6px; margin-left: auto; }
+  .nav a { display: flex; align-items: center; gap: 8px; padding: 8px 14px 6px; border-radius: 999px; color: var(--porcelain-2); text-decoration: none; font-weight: 700; font-size: 0.9375rem; }
+  .nav a i { width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .nav a[aria-current] { background: var(--porcelain); color: var(--ink); }
+  .nav a[aria-current] i { background: var(--scarlet); }
+
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 24px 28px 48px; }
+  .title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin-bottom: 20px; }
+  .title h1 { margin: 0; font-size: clamp(1.4rem, 2.4vw, 2rem); font-weight: 800; letter-spacing: -0.02em; }
+  .title h1 span { color: var(--porcelain-3); font-weight: 400; }
+  .title .meta { color: var(--porcelain-3); font-size: 0.9375rem; display: flex; gap: 14px; flex-wrap: wrap; }
+  .title .meta b { color: var(--porcelain); font-weight: 700; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 600px) minmax(0, 1fr); gap: 32px; align-items: start; }
+
+  /* Player plates: enamel name boards. */
+  .plate { display: flex; align-items: center; gap: 12px; padding: 9px 14px 7px; background: var(--porcelain); color: var(--ink); font-weight: 800; }
+  .plate .pip { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink); }
+  .plate .pip.w { background: #fff; } .plate .pip.b { background: var(--ink); }
+  .plate .acc { margin-left: auto; font-size: 1.125rem; }
+  .plate .acc small { font-weight: 600; color: #4b5a7c; font-size: 0.75rem; margin-left: 2px; }
+  .plate.top { border-radius: 8px 8px 0 0; } .plate.bot { border-radius: 0 0 8px 8px; }
+
+  .pm-board { display: grid; grid-template-columns: repeat(8, 1fr); aspect-ratio: 1; position: relative; border-left: 6px solid var(--porcelain); border-right: 6px solid var(--porcelain); }
+  .sq { position: relative; display: grid; place-items: center; }
+  .sq.l { background: var(--sq-l); } .sq.d { background: var(--sq-d); }
+  .sq.hl.l { background: #f3d58a; } .sq.hl.d { background: #c9a24a; }
+  .sq img { width: 88%; height: 88%; user-select: none; }
+  .co { position: absolute; font-size: 0.65rem; font-weight: 800; }
+  .co.r { top: 2px; left: 3px; } .co.f { bottom: 1px; right: 4px; }
+  .sq.l .co { color: var(--sq-d); } .sq.d .co { color: var(--sq-l); }
+  .pm-badge { position: absolute; top: -10px; right: -10px; z-index: 2; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 0.85rem; color: #fff; border: 3px solid var(--porcelain); box-shadow: 0 2px 6px rgb(0 0 0 / .35); }
+  .pm-badge svg { width: 15px; height: 15px; }
+  .pm-arrow { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--green); opacity: .9; pointer-events: none; }
+  .m-brilliant { background: var(--m-brilliant); } .m-great { background: var(--m-great); } .m-best { background: var(--m-best); }
+  .m-excellent { background: var(--m-excellent); color: var(--ink) !important; } .m-good { background: var(--m-good); color: var(--ink) !important; }
+  .m-book { background: var(--m-book); color: var(--ink) !important; } .m-forced { background: var(--m-forced); }
+  .m-inaccuracy { background: var(--m-inaccuracy); color: var(--ink) !important; } .m-miss { background: var(--m-miss); }
+  .m-mistake { background: var(--m-mistake); color: var(--ink) !important; } .m-blunder { background: var(--m-blunder); }
+
+  .controls { display: flex; gap: 10px; margin-top: 14px; }
+  .controls button { width: 52px; height: 44px; border-radius: 999px; border: 2px solid var(--seam); background: var(--enamel-2); display: grid; place-items: center; transition: background .15s, border-color .15s; }
+  .controls button:hover { border-color: var(--porcelain-3); background: var(--enamel-3); }
+  .controls button:disabled { opacity: .35; cursor: default; }
+  .controls svg { width: 20px; height: 20px; }
+  .controls .sp { flex: 1; }
+
+  /* The station sign: the current move. */
+  .sign { background: var(--porcelain); color: var(--ink); border-radius: 10px; padding: 20px 22px 18px; position: relative; overflow: hidden; }
+  .sign::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: var(--cobalt); }
+  .sign-head { display: flex; align-items: center; gap: 14px; }
+  .bullet { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 1.1rem; color: #fff; flex: none; }
+  .bullet svg { width: 22px; height: 22px; }
+  .sign h2 { margin: 0; font-size: 2rem; font-weight: 900; letter-spacing: -0.02em; line-height: 1; }
+  .sign .kind { font-weight: 700; font-size: 0.9375rem; color: #44527a; margin-top: 3px; }
+  .sign .ev { margin-left: auto; font-weight: 900; font-size: 1.25rem; padding: 6px 10px 4px; border-radius: 6px; background: var(--ink); color: var(--porcelain); }
+  .sign p { margin: 14px 0 0; font-size: 1.0625rem; line-height: 1.5; max-width: 60ch; }
+  .sign .lead { font-weight: 700; }
+  .sign .alt { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 14px 0 6px; padding-top: 12px; border-top: 2px dashed #c3c9d8; font-size: 0.9375rem; }
+  .sign .alt b { color: #44527a; }
+  .sign .alt button { border: 0; background: var(--ink); color: var(--porcelain); border-radius: 999px; padding: 6px 12px 4px; font-weight: 700; font-size: 0.8125rem; }
+
+  /* Line map: the winning chances as an octilinear route. */
+  .map { margin-top: 22px; background: var(--enamel-2); border: 1px solid var(--seam); border-radius: 10px; padding: 14px 16px 10px; }
+  .map-head { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--porcelain-3); font-weight: 700; margin-bottom: 6px; }
+  .map svg { width: 100%; height: 170px; display: block; overflow: visible; }
+  .map .zone text { fill: var(--porcelain-3); font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+  .map .stn { cursor: pointer; }
+
+  /* Station list: notation. */
+  .list { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+  .list h3 { grid-column: 1 / -1; margin: 0 0 8px; font-size: 0.8125rem; color: var(--porcelain-3); font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .rows { max-height: 260px; overflow: auto; border-left: 6px solid var(--porcelain); padding-left: 0; scrollbar-color: var(--seam) transparent; grid-column: 1 / -1; columns: 2; column-gap: 22px; }
+  .row { display: grid; grid-template-columns: 34px 1fr 1fr; align-items: center; break-inside: avoid; }
+  .row .no { color: var(--porcelain-3); font-weight: 700; font-size: 0.8125rem; padding-left: 8px; position: relative; }
+  .row .no::before { content: ''; position: absolute; left: -6px; top: 50%; width: 10px; height: 3px; background: var(--porcelain); }
+  .mv { text-align: left; border: 0; background: none; padding: 6px 8px 4px; border-radius: 6px; font-weight: 700; font-size: 0.9375rem; display: flex; align-items: center; gap: 6px; }
+  .mv:hover { background: var(--enamel-3); }
+  .mv[aria-current] { background: var(--porcelain); color: var(--ink); }
+  .mv i { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.55rem; font-weight: 900; color: #fff; flex: none; }
+  .mv i svg { width: 9px; height: 9px; }
+
+  .totals { margin-top: 22px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .total { border: 1px solid var(--seam); border-radius: 10px; padding: 12px 14px; }
+  .total .who { font-weight: 800; font-size: 0.875rem; color: var(--porcelain-2); }
+  .total .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 700; padding: 3px 9px 2px 3px; border-radius: 999px; background: var(--enamel-3); border: 0; }
+  .chip i { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 0.6rem; font-weight: 900; color: #fff; }
+  .chip i svg { width: 10px; height: 10px; }
+
+  @media (max-width: 900px) {
+    .bar { padding: 0 16px; gap: 12px; } .nav a { padding: 7px 10px 5px; }
+    .wrap { padding: 16px 16px 40px; }
+    .grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .totals { grid-template-columns: minmax(0, 1fr); }
+    .title h1 { font-size: 1.35rem; }
+    .rows { columns: 1; }
+    .sign h2 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="logo" href="#"><span class="roundel"><b>!!</b></span>Postmortem</a>
+  <nav class="nav" aria-label="Main"><a href="#" aria-current="page"><i></i>Games</a><a href="#"><i></i>Insights</a></nav>
+</header>
+<main class="wrap">
+  <div class="title">
+    <h1>Paul Morphy <span>against</span> Duke Karl / Count Isouard</h1>
+    <div class="meta"><span><b>White won</b> 1–0</span><span>Paris, 1858</span><span>Philidor Defense</span></div>
+  </div>
+  <div class="grid">
+    <section>
+      <div class="plate top" id="pTop"></div>
+      <div id="board"></div>
+      <div class="plate bot" id="pBot"></div>
+      <div class="controls">
+        <button data-act="first" aria-label="First move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 6l-6 6 6 6M7 6v12"/></svg></button>
+        <button data-act="prev" aria-label="Previous move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button data-act="next" aria-label="Next move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button data-act="last" aria-label="Last move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6l6 6-6 6M17 6v12"/></svg></button>
+        <span class="sp"></span>
+        <button data-act="flip" aria-label="Turn the board round"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg></button>
+      </div>
+    </section>
+    <section>
+      <div class="sign" id="sign" aria-live="polite"></div>
+      <div class="map"><div class="map-head"><span>White winning ↑</span><span>Click a station to go there</span></div><svg id="map" viewBox="0 0 600 170" preserveAspectRatio="none"></svg></div>
+      <div class="list"><h3>Stations · moves</h3><div class="rows" id="rows"></div></div>
+      <div class="totals" id="totals"></div>
+    </section>
+  </div>
+</main>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+const { G, N, GLYPH, LABEL, ERRORS } = PM;
+const pip = (c) => `<span class="pip ${c}"></span>`;
+function plate(c) { const p = c === 'w' ? G.white : G.black; return `${pip(c)}${p}<span class="acc">${PM.acc(c)}<small>% accuracy</small></span>`; }
+
+function octi(pts) {
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+    const dx = x1 - x0, dy = y1 - y0, ady = Math.abs(dy);
+    if (ady > dx) { const v = ady - dx; d += ` L${x0},${y0 + Math.sign(dy) * v} L${x1},${y1}`; }
+    else d += ` L${x0 + ady},${y1} L${x1},${y1}`;
+  }
+  return d;
+}
+function map(s) {
+  const W = 600, H = 170, pad = 8, top = 22, h = H - top - 8;
+  const pts = PM.series.map((v, i) => [pad + i / N * (W - pad * 2), top + h - v / 100 * h]);
+  // fare zones from phase changes
+  let zones = '', start = 0, cur = G.moves[0].phase, names = { opening: 'ZONE 1 · OPENING', middlegame: 'ZONE 2 · MIDDLEGAME', endgame: 'ZONE 3 · ENDGAME' };
+  const zoneAt = [];
+  G.moves.forEach((m, i) => { if (m.phase !== cur) { zoneAt.push([start, i, cur]); start = i; cur = m.phase; } });
+  zoneAt.push([start, N, cur]);
+  zoneAt.forEach(([a, b, ph], k) => {
+    const x = pts[a][0], x2 = pts[b][0];
+    zones += `<g class="zone">${k ? `<line x1="${x}" x2="${x}" y1="0" y2="${H}" stroke="#2a3f73" stroke-dasharray="3 4"/>` : ''}${x2 - x > 120 ? `<text x="${x + 6}" y="11">${names[ph]}</text>` : ''}</g>`;
+  });
+  const mid = top + h / 2;
+  let stations = '';
+  pts.forEach(([x, y], i) => {
+    const m = PM.move(i);
+    const big = m && (['brilliant', 'great'].includes(m.mark) || ERRORS.includes(m.mark));
+    const here = i === s.ply;
+    if (here) stations += `<g class="stn" data-ply="${i}"><circle cx="${x}" cy="${y}" r="11" fill="#f3efe6" stroke="#0d1830" stroke-width="4"/><circle cx="${x}" cy="${y}" r="4" fill="#0d1830"/></g>`;
+    else if (big) stations += `<g class="stn" data-ply="${i}"><circle cx="${x}" cy="${y}" r="7.5" fill="var(--m-${m.mark})" stroke="#f3efe6" stroke-width="3"/></g>`;
+    else stations += `<rect class="stn" data-ply="${i}" x="${x - 1.5}" y="${y - 5}" width="3" height="5" fill="#f3efe6"/>`;
+  });
+  const cur_ = pts[s.ply];
+  const lbl = s.ply ? PM.label(PM.move(s.ply)) + (PM.move(s.ply).suffix || '') : 'Start';
+  const lx = Math.min(Math.max(cur_[0], 40), W - 40);
+  document.getElementById('map').innerHTML = `${zones}<line x1="0" x2="${W}" y1="${mid}" y2="${mid}" stroke="#2a3f73"/>
+    <path d="${octi(pts)}" fill="none" stroke="#e8432f" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+    ${stations}<g><rect x="${lx - 34}" y="${cur_[1] > top + 30 ? cur_[1] - 36 : cur_[1] + 16}" width="68" height="20" rx="4" fill="#f3efe6"/><text x="${lx}" y="${(cur_[1] > top + 30 ? cur_[1] - 36 : cur_[1] + 16) + 14.5}" text-anchor="middle" font-size="12" font-weight="900" fill="#0d1830">${lbl}</text></g>`;
+}
+
+function sign(s) {
+  const m = PM.move(s.ply);
+  const el = document.getElementById('sign');
+  if (!m) { el.innerHTML = `<div class="sign-head"><div><h2>Starting position</h2><div class="kind">${G.opening.name}</div></div></div><p>White played at ${PM.acc('w')}% accuracy and Black at ${PM.acc('b')}%. Step through with the arrow keys or pick a station.</p>`; return; }
+  const alt = m.best ? `<div class="alt"><b>Better was</b><span>${PM.lineText(m.ply, m.best.pv)}</span><button data-act="best">${s.showBest ? 'Back to the move played' : 'Show on the board'}</button></div>` : '';
+  el.innerHTML = `<div class="sign-head"><span class="bullet m-${m.mark}">${GLYPH[m.mark]}</span><div><h2>${PM.label(m)}${m.suffix}</h2><div class="kind">${LABEL[m.mark]} · ${m.phase}</div></div><span class="ev">${m.eval}</span></div>
+    <p class="lead">${m.lead}</p>${m.notes.map((n) => `<p>${n}</p>`).join('')}${alt}`;
+}
+
+function rows(s) {
+  let html = '';
+  for (let i = 0; i < N; i += 2) {
+    const w = G.moves[i], b = G.moves[i + 1];
+    const cell = (m) => m ? `<button class="mv" data-ply="${m.ply}" ${s.ply === m.ply ? 'aria-current="true"' : ''}>${['book', 'best', 'good', 'excellent', 'forced'].includes(m.mark) ? '' : `<i class="m-${m.mark}">${GLYPH[m.mark]}</i>`}${m.san}</button>` : '<span></span>';
+    html += `<div class="row"><span class="no">${i / 2 + 1}</span>${cell(w)}${cell(b)}</div>`;
+  }
+  const box = document.getElementById('rows');
+  box.innerHTML = html;
+  const cur = box.querySelector('[aria-current]');
+  if (cur) cur.scrollIntoView({ block: 'nearest' });
+}
+
+function totals() {
+  const out = ['w', 'b'].map((c) => {
+    const n = PM.counts(c);
+    const chips = ['brilliant', 'great', 'best', 'excellent', 'book', 'inaccuracy', 'miss', 'mistake', 'blunder'].filter((k) => n[k]).map((k) => `<span class="chip"><i class="m-${k}">${GLYPH[k]}</i>${n[k]} ${LABEL[k].toLowerCase()}</span>`).join('');
+    return `<div class="total"><div class="who">${c === 'w' ? G.white : G.black}</div><div class="chips">${chips}</div></div>`;
+  });
+  document.getElementById('totals').innerHTML = out.join('');
+}
+
+PM.mount((s) => {
+  const v = PM.view(s);
+  const top = s.flip ? 'w' : 'b';
+  document.getElementById('pTop').innerHTML = plate(top);
+  document.getElementById('pBot').innerHTML = plate(top === 'w' ? 'b' : 'w');
+  document.getElementById('board').innerHTML = PM.board(v);
+  document.querySelector('[data-act=first]').disabled = document.querySelector('[data-act=prev]').disabled = s.ply === 0;
+  document.querySelector('[data-act=last]').disabled = document.querySelector('[data-act=next]').disabled = s.ply === N;
+  sign(s); map(s); rows(s);
+});
+totals();
+</script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training File · Postmortem sample</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Archivo:wght@500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --steel: #3c463f; --steel-2: #4a564d; --steel-3: #2e3630; --card: #fbfbf6; --card-2: #f1f1ea;
+    --rule-red: #d23a2f; --rule-blue: #a9c6e6; --ink: #22252a; --ink-2: #555a60; --pencil: #c8372d;
+    --oxblood: #7a2430; --green: #2f6b4f; --blue: #1f4e8c; --salmon: #e48b74; --yellow: #e8c45a;
+    --m-brilliant: #0b7a85; --m-great: #2c62b9; --m-best: #2f7d3e; --m-excellent: #5d8f3e; --m-good: #57655b; --m-book: #8a6b3c;
+    --m-forced: #5f6873; --m-inaccuracy: #855f00; --m-miss: #a33c80; --m-mistake: #a64a06; --m-blunder: #c02a22;
+    --type: 'Courier Prime', 'Courier New', monospace; --sans: 'Archivo', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--steel); }
+  body { margin: 0; color: var(--ink); font-family: var(--sans); background: var(--steel) radial-gradient(120% 80% at 50% 0%, var(--steel-2), var(--steel) 70%); min-height: 100vh; }
+  ::selection { background: var(--yellow); color: var(--ink); }
+  :focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  .bar { display: flex; align-items: center; gap: 24px; padding: 18px 28px; color: #eef0ea; }
+  .label-holder { display: flex; align-items: center; gap: 10px; background: #c9cdc6; color: var(--ink); padding: 6px 14px; border-radius: 3px; box-shadow: inset 0 1px 2px rgb(0 0 0 / .35); font-family: var(--type); font-weight: 700; font-size: 1.0625rem; text-decoration: none; }
+  .label-holder b { color: var(--pencil); }
+  .nav { display: flex; gap: 8px; margin-left: auto; }
+  .nav a { font-weight: 700; font-size: 0.9375rem; color: #dfe3dc; text-decoration: none; padding: 8px 14px; border-radius: 6px 6px 0 0; }
+  .nav a[aria-current] { background: var(--card); color: var(--ink); }
+
+  .desk { max-width: 1380px; margin: 0 auto; padding: 8px 28px 56px; display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 30px; align-items: start; }
+
+  .card { background: var(--card); border-radius: 4px; box-shadow: 0 1px 1px rgb(0 0 0 / .2), 0 10px 24px -8px rgb(0 0 0 / .45); position: relative; }
+  .card.ruled { background-image: repeating-linear-gradient(var(--card) 0 27px, var(--rule-blue) 27px 28px); background-position: 0 66px; }
+  .card .cardhead { height: 54px; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-bottom: 2px solid var(--rule-red); background: var(--card); border-radius: 4px 4px 0 0; }
+
+  .diagram { padding: 0 16px 16px; }
+  .diagram .cardhead { margin: 0 -16px 14px; font-family: var(--type); font-weight: 700; }
+  .diagram .cardhead .acc { margin-left: auto; font-size: 0.9375rem; }
+  .pm-board { display: grid; aspect-ratio: 1; position: relative; border: 2px solid var(--ink); }
+  .sq { position: relative; display: grid; place-items: center; }
+  .sq.l { background: #f3efe2; } .sq.d { background: #9aa891; }
+  .sq.hl.l { background: #f2dc8e; } .sq.hl.d { background: #c4b25e; }
+  .sq img { width: 88%; height: 88%; }
+  .co { position: absolute; font-family: var(--type); font-size: 0.65rem; font-weight: 700; }
+  .co.r { top: 1px; left: 3px; } .co.f { bottom: 0; right: 3px; }
+  .sq.l .co { color: #7c8a73; } .sq.d .co { color: #f3efe2; }
+  .pm-badge { position: absolute; top: -10px; right: -12px; z-index: 2; padding: 2px 6px; font-family: var(--type); font-weight: 700; font-size: 0.85rem; color: #fff; border-radius: 3px; transform: rotate(6deg); box-shadow: 0 2px 4px rgb(0 0 0 / .3); display: grid; place-items: center; }
+  .pm-badge svg { width: 13px; height: 13px; }
+  .pm-arrow { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--pencil); pointer-events: none; }
+  .pname { display: flex; justify-content: space-between; font-family: var(--type); font-size: 0.9375rem; padding: 8px 2px 0; }
+  .pname.top { padding: 0 2px 8px; }
+  .pname .pip { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--ink); margin-right: 8px; vertical-align: -1px; }
+  .pname .pip.b { background: var(--ink); }
+  .controls { display: flex; gap: 8px; margin-top: 14px; }
+  .controls button { background: #d8dbd3; border: 0; border-radius: 4px; padding: 9px 14px; font-weight: 700; font-size: 0.875rem; box-shadow: 0 2px 0 #9ca29a; }
+  .controls button:hover:not(:disabled) { background: #fff; }
+  .controls button:active { transform: translateY(2px); box-shadow: none; }
+  .controls button:disabled { opacity: .45; cursor: default; }
+  .controls .sp { flex: 1; }
+
+  /* The move card. */
+  .movecard { min-height: 300px; }
+  .movecard .cardhead { font-family: var(--type); font-weight: 700; font-size: 1.75rem; }
+  .movecard .cardhead small { font-size: 0.875rem; font-weight: 400; color: var(--ink-2); margin-left: 4px; }
+  .movecard .cardhead .ev { margin-left: auto; font-size: 1rem; border: 1.5px solid var(--ink); padding: 1px 8px; border-radius: 3px; }
+  .movecard .text { padding: 10px 24px 22px 24px; font-family: var(--type); font-size: 1.0625rem; line-height: 28px; }
+  .movecard .text p { margin: 0 0 28px; max-width: 62ch; }
+  .movecard .text p.lead { font-weight: 700; margin-bottom: 0; }
+  .movecard .text p.lead + p { margin-top: 0; }
+  .stamp { position: absolute; right: 22px; top: 70px; transform: rotate(-8deg); border: 3px solid currentColor; border-radius: 6px; padding: 4px 10px 2px; font-family: var(--sans); font-weight: 800; font-size: 1rem; letter-spacing: .12em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; opacity: .88; mix-blend-mode: multiply; }
+  .stamp span { font-family: var(--type); letter-spacing: 0; font-size: 1.15rem; }
+  .stamp svg { width: 18px; height: 18px; }
+  .pencil { font-family: 'Caveat', cursive; font-weight: 700; color: var(--pencil); font-size: 1.5rem; line-height: 28px; }
+  .pencil button { font-family: var(--sans); font-weight: 700; font-size: 0.8125rem; color: var(--pencil); background: none; border: 1.5px solid var(--pencil); border-radius: 999px; padding: 1px 10px; margin-left: 10px; vertical-align: 3px; }
+  .pencil button:hover { background: var(--pencil); color: #fff; }
+
+  /* Pressboard dividers above the move list. */
+  .dividers { display: flex; gap: 4px; margin: 26px 0 0 10px; }
+  .divider { border: 0; border-radius: 6px 6px 0 0; padding: 7px 14px 6px; font-weight: 800; font-size: 0.8125rem; color: #fff; display: flex; gap: 8px; align-items: center; transform: translateY(4px); transition: transform .12s; }
+  .divider[aria-pressed='true'] { transform: none; }
+  .divider b { font-family: var(--type); background: rgb(255 255 255 / .22); padding: 0 6px; border-radius: 3px; }
+  .divider.d-all { background: var(--blue); } .divider.d-err { background: var(--oxblood); } .divider.d-good { background: var(--green); } .divider.d-book { background: var(--yellow); color: var(--ink); }
+  .listcard { padding: 14px 18px 16px; border-top: 6px solid var(--blue); border-radius: 0 4px 4px 4px; }
+  .listcard[data-f='err'] { border-top-color: var(--oxblood); } .listcard[data-f='good'] { border-top-color: var(--green); } .listcard[data-f='book'] { border-top-color: var(--yellow); }
+  .moves { display: grid; grid-template-columns: 34px 1fr 1fr; max-height: 230px; overflow: auto; font-family: var(--type); font-size: 1rem; scrollbar-color: #b9bdb4 transparent; }
+  .moves .no { color: var(--ink-2); padding: 4px 0; }
+  .moves .mv { text-align: left; border: 0; background: none; padding: 4px 8px; border-radius: 3px; font-family: var(--type); display: flex; gap: 6px; align-items: center; }
+  .moves .mv:hover { background: #ecece4; }
+  .moves .mv[aria-current] { background: var(--ink); color: #fff; }
+  .moves .mv.dim { opacity: .3; }
+  .moves .sx { font-weight: 700; }
+
+  .graphcard { margin-top: 26px; padding: 12px 18px 14px; background-color: #f4f8f1; background-image: linear-gradient(#cfe1c9 1px, transparent 1px), linear-gradient(90deg, #cfe1c9 1px, transparent 1px); background-size: 12px 12px; }
+  .graphcard .h { font-family: var(--type); font-weight: 700; font-size: 0.875rem; display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .graphcard svg { width: 100%; height: 110px; display: block; }
+
+  .filed { margin-top: 26px; }
+  .filed h3 { margin: 0 0 10px; font-size: 0.875rem; font-weight: 700; color: #dfe3dc; }
+  .filed .row { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 10px; }
+  .mini { flex: none; width: 150px; background: var(--card); border-radius: 3px; border-top: 3px solid var(--rule-red); padding: 8px 10px; text-align: left; border-left: 0; border-right: 0; border-bottom: 0; box-shadow: 0 6px 14px -6px rgb(0 0 0 / .5); font-family: var(--type); transition: transform .12s; }
+  .mini:hover { transform: translateY(-3px); }
+  .mini b { display: block; font-size: 1.0625rem; }
+  .mini span { font-family: var(--sans); font-size: 0.75rem; font-weight: 700; }
+
+  @media (max-width: 920px) {
+    .bar { padding: 14px 16px; gap: 12px; } .desk { grid-template-columns: minmax(0, 1fr); padding: 4px 16px 40px; gap: 22px; }
+    .controls { flex-wrap: wrap; } .diagram .cardhead { font-size: 0.8125rem; }
+    .stamp { position: static; display: inline-flex; margin: 12px 0 0 20px; }
+    .movecard .cardhead { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="label-holder" href="#">POSTMORTEM <b>!!</b></a>
+  <nav class="nav" aria-label="Main"><a href="#" aria-current="page">Games</a><a href="#">Insights</a></nav>
+</header>
+<main class="desk">
+  <section>
+    <div class="card diagram">
+      <div class="cardhead"><span>MORPHY – DUKE KARL / COUNT ISOUARD</span><span class="acc">1–0</span></div>
+      <div class="pname top" id="pTop"></div>
+      <div id="board"></div>
+      <div class="pname" id="pBot"></div>
+    </div>
+    <div class="controls"><button data-act="first">Start</button><button data-act="prev">Back</button><button data-act="next">Next</button><button data-act="last">End</button><span class="sp"></span><button data-act="flip">Turn board</button></div>
+  </section>
+  <section>
+    <div class="card ruled movecard" id="movecard" aria-live="polite"></div>
+    <div class="dividers" id="dividers"></div>
+    <div class="card listcard" id="listcard"><div class="moves" id="moves"></div></div>
+    <div class="card graphcard"><div class="h"><span>WINNING CHANCES · WHITE ABOVE</span><span id="gpos"></span></div><svg id="graph" viewBox="0 0 600 110" preserveAspectRatio="none"></svg></div>
+    <div class="filed"><h3>Filed from this game · the moments worth a second look</h3><div class="row" id="filed"></div></div>
+  </section>
+</main>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+const { G, N, GLYPH, LABEL, ERRORS } = PM;
+
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let filter = 'all';
+const FILTERS = [
+  ['all', 'All moves', () => true],
+  ['err', 'Errors', (m) => ERRORS.includes(m.mark)],
+  ['good', 'Brilliant & great', (m) => m.mark === 'brilliant' || m.mark === 'great'],
+  ['book', 'Book', (m) => m.mark === 'book'],
+];
+function dividers() {
+  document.getElementById('dividers').innerHTML = FILTERS.map(([id, name, fn]) => `<button class="divider d-${id}" data-f="${id}" aria-pressed="${filter === id}">${name}<b>${G.moves.filter(fn).length}</b></button>`).join('');
+}
+document.getElementById('dividers').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (!b) return; filter = b.dataset.f; dividers(); moves(PM.S); });
+
+function movecard(s) {
+  const m = PM.move(s.ply), el = document.getElementById('movecard');
+  if (!m) { el.innerHTML = `<div class="cardhead">Starting position</div><div class="text"><p class="lead">${G.opening.eco} ${G.opening.name}.</p><p>White played at ${PM.acc('w')}% accuracy and Black at ${PM.acc('b')}%. Step through with the arrow keys, or pull a card below.</p></div>`; return; }
+  const color = css('--m-' + m.mark);
+  const pencil = m.best ? `<p class="pencil">Better: ${PM.lineText(m.ply, m.best.pv)} <button data-act="best">${s.showBest ? 'Back to the move played' : 'Show on the board'}</button></p>` : '';
+  el.innerHTML = `<div class="cardhead">${PM.label(m)}${m.suffix}<small>${m.color === 'w' ? G.white : G.black}</small><span class="ev">${m.eval}</span></div>
+    <div class="stamp" style="color:${color}"><span>${GLYPH[m.mark]}</span>${LABEL[m.mark]}</div>
+    <div class="text"><p class="lead">${m.lead}</p>${m.notes.map((n) => `<p>${n}</p>`).join('')}${pencil}</div>`;
+}
+function moves(s) {
+  const fn = FILTERS.find((f) => f[0] === filter)[2];
+  let html = '';
+  for (let i = 0; i < N; i += 2) {
+    const cell = (m) => m ? `<button class="mv ${fn(m) ? '' : 'dim'}" data-ply="${m.ply}" ${s.ply === m.ply ? 'aria-current="true"' : ''}>${m.san}${m.suffix ? `<span class="sx" style="color:${s.ply === m.ply ? '#fff' : css('--m-' + m.mark)}">${m.suffix}</span>` : ''}</button>` : '<span></span>';
+    html += `<span class="no">${i / 2 + 1}.</span>${cell(G.moves[i])}${cell(G.moves[i + 1])}`;
+  }
+  const el = document.getElementById('moves'); el.innerHTML = html;
+  document.getElementById('listcard').dataset.f = filter;
+  el.querySelector('[aria-current]')?.scrollIntoView({ block: 'nearest' });
+}
+function graph(s) {
+  const pts = PM.points(600, 110);
+  const d = 'M' + pts.map((p) => p.map((n) => n.toFixed(1)).join(',')).join(' L');
+  const [x, y] = pts[s.ply];
+  const hits = pts.map(([px], i) => `<rect x="${px - 300 / N}" y="0" width="${600 / N}" height="110" fill="transparent" data-ply="${i}" style="cursor:pointer"/>`).join('');
+  document.getElementById('graph').innerHTML = `<line x1="0" x2="600" y1="55" y2="55" stroke="#8fae86" stroke-dasharray="4 4"/><path d="${d}" fill="none" stroke="#22252a" stroke-width="2.2" stroke-linejoin="round"/>${hits}<circle cx="${x}" cy="${y}" r="6" fill="none" stroke="#c8372d" stroke-width="2.5"/>`;
+  document.getElementById('gpos').textContent = s.ply ? PM.label(PM.move(s.ply)) : 'START';
+}
+function filed() {
+  const pick = G.moves.filter((m) => ERRORS.includes(m.mark) || m.mark === 'brilliant');
+  document.getElementById('filed').innerHTML = pick.map((m) => `<button class="mini" data-ply="${m.ply}"><b>${PM.label(m)}${m.suffix}</b><span style="color:${css('--m-' + m.mark)}">${LABEL[m.mark]}</span></button>`).join('');
+}
+PM.mount((s) => {
+  const v = PM.view(s);
+  document.getElementById('board').innerHTML = PM.board(v);
+  const b = document.querySelector('#board .pm-badge'); if (b) b.style.background = css('--m-' + PM.move(s.ply).mark);
+  const top = s.flip ? 'w' : 'b';
+  const pl = (c) => `<span><i class="pip ${c}"></i>${c === 'w' ? G.white : G.black}</span><b>${PM.acc(c)}%</b>`;
+  document.getElementById('pTop').innerHTML = pl(top);
+  document.getElementById('pBot').innerHTML = pl(top === 'w' ? 'b' : 'w');
+  document.querySelector('[data-act=first]').disabled = document.querySelector('[data-act=prev]').disabled = s.ply === 0;
+  document.querySelector('[data-act=last]').disabled = document.querySelector('[data-act=next]').disabled = s.ply === N;
+  movecard(s); moves(s); graph(s);
+});
+dividers(); filed();
+</script>
+</body>
+</html>

@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ERROR_MARKS, MARK_LABEL, MARK_ORDER, MARK_SUFFIX, clockText, explain, moveLabel, moveNumber, sideName } from '../lib/explain';
+import { ERROR_MARKS, MARK_LABEL, MARK_ORDER, MARK_SUFFIX, clockText, explain, moveLabel, sideName } from '../lib/explain';
 import { resolvePlayer } from '../lib/insights';
 import { parsePgn } from '../lib/pgn';
 import { formatScore } from '../lib/score';
 import { isReviewed, requestReview, resetEngine, useStore } from '../lib/store';
-import type { Color, GameRecord, GameReview, Mark, MoveReview, ParsedGame } from '../lib/types';
+import type { Color, GameRecord, GameReview, Mark, MoveReview, ParsedGame, Phase } from '../lib/types';
 import { Board, EvalBar } from './Board';
 import { EvalGraph } from './EvalGraph';
 import { MarkTag } from './MarkTag';
-import { dateLabel, perspective, resultMark, resultText, timeLabel } from './format';
+import { gameDateLabel, gameSite, perspective, resultMark, resultText, timeLabel } from './format';
 import { IconExternal, IconFirst, IconFlip, IconLast, IconNext, IconPrev } from './icons';
 import { href } from './router';
 
-/** Marks whose colour also tints the move's annotation in the notation. */
-const INKED: Mark[] = ['brilliant', 'great', 'inaccuracy', 'miss', 'mistake', 'blunder'];
+/** Marks that get a bullet in the station list; the rest are plain stops. */
+const BULLETED: Mark[] = ['brilliant', 'great', 'inaccuracy', 'miss', 'mistake', 'blunder'];
+const PHASE_NAME: Record<Phase, string> = { opening: 'Opening', middlegame: 'Middlegame', endgame: 'Endgame' };
 
 export function Review({ id, startPly }: { id: string; startPly?: number }) {
   const ready = useStore((s) => s.ready);
@@ -129,10 +130,11 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
         </h1>
         <div className="meta">
           <span>
-            {resultText(game)} {game.result !== '*' && <span className="num">({resultMark(game.result)})</span>}
+            <b>{resultText(game)}</b> {game.result !== '*' && <span className="num">{resultMark(game.result)}</span>}
           </span>
           {timeLabel(game) && <span>{timeLabel(game)}</span>}
-          <span>{dateLabel(game.playedAt)}</span>
+          <span>{gameDateLabel(game)}</span>
+          {gameSite(game) && <span>{gameSite(game)}</span>}
           {review?.opening && <span>{review.opening.name}</span>}
           {game.url && (
             <a href={game.url} target="_blank" rel="noreferrer">
@@ -181,7 +183,7 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
         </div>
 
         <div className="side">
-          <section className="note" aria-live="polite">
+          <section className="sign" aria-live="polite">
             {review ? (
               <Note game={game} review={review} move={moveReview} showBest={viewingBest} bestDiffers={bestDiffers} onToggleBest={() => setShowBest((v) => !v)} />
             ) : (
@@ -223,9 +225,7 @@ function PlayerBar({ game, color, clock, accuracy }: { game: GameRecord; color: 
         {accuracy !== undefined && (
           <span className="acc" title={`${sideName(color)}'s accuracy`}>
             {accuracy.toFixed(1)}
-            <span className="muted" style={{ fontWeight: 500 }}>
-              %
-            </span>
+            <small>% accuracy</small>
           </span>
         )}
         {clock !== undefined && <span className="clock">{clockText(clock)}</span>}
@@ -317,15 +317,17 @@ function Note({ game, review, move, showBest, bestDiffers, onToggleBest }: NoteP
   if (!move) {
     return (
       <>
-        <div className="note-head">
-          <span className="note-move">Starting position</span>
+        <div className="sign-head">
+          <div className="sign-title">
+            <h2 className="note-move">Starting position</h2>
+            {review.opening && <span className="note-mark">{review.opening.name}</span>}
+          </div>
           <span className="note-eval">{formatScore(review.startEval)}</span>
         </div>
-        <p>
-          {review.opening ? `${review.opening.name}. ` : ''}
+        <p className="lead">
           White played at {review.accuracy.w.toFixed(1)}% accuracy and Black at {review.accuracy.b.toFixed(1)}%.
         </p>
-        <p className="line">Step through with the arrow keys or the buttons under the board, or pick a move below.</p>
+        <p>Step through with the arrow keys or the buttons under the board, or pick a stop on the line below.</p>
       </>
     );
   }
@@ -333,37 +335,46 @@ function Note({ game, review, move, showBest, bestDiffers, onToggleBest }: NoteP
   const suffix = MARK_SUFFIX[move.mark];
   return (
     <>
-      <div className="note-head">
-        <span className="note-move">
-          {moveLabel(move)}
-          {suffix && <span className={`ink-${move.mark}`}>{suffix}</span>}
-        </span>
-        <span className="note-mark">
-          <MarkTag mark={move.mark} labelled />
-          {MARK_LABEL[move.mark]}
-        </span>
+      <div className="sign-head">
+        <MarkTag mark={move.mark} />
+        <div className="sign-title">
+          <h2 className="note-move">
+            {moveLabel(move)}
+            {suffix}
+          </h2>
+          <span className="note-mark">
+            {MARK_LABEL[move.mark]}
+            <span className="sep" aria-hidden="true" />
+            <span className="visually-hidden">, </span>
+            {PHASE_NAME[move.phase]}
+          </span>
+        </div>
         <span className="note-eval" title="Evaluation after the move, in pawns, from White's side">
           {formatScore(move.evalAfter)}
         </span>
       </div>
-      <p>{note.lead}</p>
+      <p className="lead">{note.lead}</p>
       {note.notes.map((n) => (
         <p key={n}>{n}</p>
       ))}
-      {bestDiffers && move.best && (
-        <p className="line">
-          <b>Better was</b>
-          {lineText(move.ply, move.best.pv.slice(0, 4))}{' '}
-          <button className="linklike" type="button" onClick={onToggleBest}>
-            {showBest ? 'Back to the move played' : 'Show on the board'}
-          </button>
-        </p>
-      )}
-      {move.mark !== 'book' && move.follow && move.follow.length > 0 && (
-        <p className="line">
-          <b>Likely next</b>
-          {lineText(move.ply + 1, move.follow)}
-        </p>
+      {((bestDiffers && move.best) || (move.mark !== 'book' && move.follow && move.follow.length > 0)) && (
+        <div className="sign-lines">
+          {bestDiffers && move.best && (
+            <p className="line">
+              <b>Better was</b>
+              {lineText(move.ply, move.best.pv.slice(0, 4))}
+              <button className="pill" type="button" onClick={onToggleBest}>
+                {showBest ? 'Back to the move played' : 'Show on the board'}
+              </button>
+            </p>
+          )}
+          {move.mark !== 'book' && move.follow && move.follow.length > 0 && (
+            <p className="line">
+              <b>Likely next</b>
+              {lineText(move.ply + 1, move.follow)}
+            </p>
+          )}
+        </div>
       )}
     </>
   );
@@ -389,35 +400,57 @@ function Notation({ parsed, review, ply, onSelect, result }: NotationProps) {
       container.scrollTop = 0;
       return;
     }
-    const top = current.offsetTop - container.offsetTop;
-    if (top < container.scrollTop + 8) container.scrollTop = Math.max(0, top - 40);
-    else if (top + current.offsetHeight > container.scrollTop + container.clientHeight - 8) {
-      container.scrollTop = top + current.offsetHeight - container.clientHeight + 40;
+    // On phones the list is part of the page. Follow the move only while the list is on screen,
+    // so stepping from the board never pulls the page away from what the person is reading.
+    if (container.scrollHeight <= container.clientHeight) {
+      const rect = container.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) current.scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    // Scroll by whole rows, keeping one row of context around the current move.
+    const row = current.closest<HTMLElement>('.nrow') ?? current;
+    const starts = [...container.querySelectorAll<HTMLElement>('.nrow')].map((r) => r.offsetTop);
+    if (row.offsetTop < container.scrollTop) {
+      const want = row.offsetTop - row.offsetHeight;
+      container.scrollTop = Math.max(0, ...starts.filter((t) => t <= want));
+    } else if (row.offsetTop + row.offsetHeight > container.scrollTop + container.clientHeight) {
+      const want = row.offsetTop + row.offsetHeight * 2 - container.clientHeight;
+      container.scrollTop = Math.min(container.scrollHeight, ...starts.filter((t) => t >= want));
     }
   }, [ply]);
 
+  const rows: [ParsedGame['moves'][number] | undefined, ParsedGame['moves'][number] | undefined][] = [];
+  parsed.moves.forEach((m, i) => {
+    if (m.color === 'w' || i === 0) rows.push(m.color === 'w' ? [m, undefined] : [undefined, m]);
+    else rows[rows.length - 1][1] = m;
+  });
+
+  const cell = (m: ParsedGame['moves'][number] | undefined) => {
+    if (!m) return <span />;
+    const r = review?.moves[m.ply - 1];
+    return (
+      <button
+        type="button"
+        className="mv"
+        aria-current={ply === m.ply ? 'true' : undefined}
+        aria-label={`${moveLabel(m)}${r ? `, ${MARK_LABEL[r.mark]}` : ''}`}
+        onClick={() => onSelect(m.ply)}
+      >
+        {r && BULLETED.includes(r.mark) && <MarkTag mark={r.mark} labelled />}
+        {m.san}
+      </button>
+    );
+  };
+
   return (
     <div className="notation" ref={box}>
-      {parsed.moves.map((m, i) => {
-        const r = review?.moves[i];
-        const suffix = r ? MARK_SUFFIX[r.mark] : undefined;
-        const showNumber = m.color === 'w' || i === 0;
-        return (
-          <span key={m.ply}>
-            {showNumber && <span className="no">{moveNumber(m.ply)}</span>}
-            <button
-              type="button"
-              className="mv"
-              aria-current={ply === m.ply ? 'true' : undefined}
-              aria-label={`${moveLabel(m)}${r ? `, ${MARK_LABEL[r.mark]}` : ''}`}
-              onClick={() => onSelect(m.ply)}
-            >
-              {m.san}
-              {suffix && r && <span className={`sfx ${INKED.includes(r.mark) ? `ink-${r.mark}` : ''}`}>{suffix}</span>}
-            </button>{' '}
-          </span>
-        );
-      })}
+      {rows.map(([w, b]) => (
+        <div className="nrow" key={(w ?? b)!.ply}>
+          <span className="no">{Math.ceil((w ?? b)!.ply / 2)}</span>
+          {cell(w)}
+          {cell(b)}
+        </div>
+      ))}
       {result !== '*' && <span className="result">{resultMark(result)}</span>}
     </div>
   );

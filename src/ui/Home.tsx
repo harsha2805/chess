@@ -5,7 +5,7 @@ import { DEPTHS, cancelReviews, isReviewed, removeGames, requestReview, resetEng
 import type { GameRecord } from '../lib/types';
 import { Board } from './Board';
 import { ImportForm, openSample } from './ImportForm';
-import { dateLabel, perspective, resultMark, timeLabel } from './format';
+import { gameDateLabel, perspective, resultMark, timeLabel } from './format';
 import { outcomeFor, resolvePlayer } from '../lib/insights';
 import { href } from './router';
 
@@ -229,7 +229,7 @@ function GameRow({ game, player, progress, queued, failure }: RowProps) {
       <span className="sub">
         {reviewed && game.review!.opening ? <span>{game.review!.opening.name}</span> : <span>{Math.ceil(game.plies / 2)} moves</span>}
         {timeLabel(game) && <span>{timeLabel(game)}</span>}
-        <span>{dateLabel(game.playedAt)}</span>
+        <span>{gameDateLabel(game)}</span>
       </span>
       <span className="end">
         {reviewed ? (

@@ -5,12 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Postmortem: free chess game review</title>
     <meta name="description" content="Free, unlimited review of your chess.com and Lichess games. Stockfish marks every move in your browser and shows the patterns across your games." />
-    <meta name="theme-color" content="#16202e" />
+    <meta name="theme-color" content="#0d1830" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <style>
-      html { background: #f1f3f5; }
-      @media (prefers-color-scheme: dark) { html { background: #0f151d; } }
+      html { background: #0d1830; color: #f3efe6; }
+      html[data-theme='day'] { background: #f3efe6; color: #0d1830; }
     </style>
+    <script>
+      try {
+        if (localStorage.getItem('postmortem-theme') === 'day') document.documentElement.dataset.theme = 'day';
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
