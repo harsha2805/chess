@@ -289,6 +289,13 @@ function PlayerBar({ game, color, clock, accuracy }: { game: GameRecord; color: 
  * Which setting made the review, and whether the time limit cut it short. Below Deep, a way to
  * give this game a Deep review now, or how far the background review of it has got.
  */
+/** The dot between parts of a line. The font's dot sits close to its right edge, so it gets its own room. */
+const Sep = () => (
+  <span className="sep" aria-hidden="true">
+    ·
+  </span>
+);
+
 function ReviewSetting({ game, review }: { game: GameRecord; review: GameReview }) {
   const slow = useStore((s) => s.slowEngine);
   const active = useStore((s) => s.active.find((a) => a.id === game.id) ?? null);
@@ -309,7 +316,7 @@ function ReviewSetting({ game, review }: { game: GameRecord; review: GameReview 
       {shortfall && <span title={shortfall}>, cut short by the time limit</span>}
       {background ? (
         <>
-          {' · '}
+          <Sep />
           <span className="num">Deep review in the background: {Math.round((background.done / background.total) * 100)}%</span>{' '}
           <button className="linklike" type="button" onClick={deepNow}>
             Finish it now
@@ -318,7 +325,7 @@ function ReviewSetting({ game, review }: { game: GameRecord; review: GameReview 
       ) : (
         belowDeep && (
           <>
-            {' · '}
+            <Sep />
             {elsewhere !== undefined && <>Your other device is giving it a Deep review ({elsewhere}% when last heard). </>}
             <button className="linklike" type="button" onClick={deepNow} title="The most accurate verdict on this game. About a minute on a laptop.">
               Deep review this game now
@@ -327,7 +334,7 @@ function ReviewSetting({ game, review }: { game: GameRecord; review: GameReview 
           </>
         )
       )}
-      {notice && <> · {notice}</>}
+      {notice && <><Sep />{notice}</>}
     </span>
   );
 }

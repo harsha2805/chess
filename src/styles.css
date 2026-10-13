@@ -455,6 +455,10 @@ textarea {
   text-underline-offset: 3px;
   cursor: pointer;
 }
+.sep {
+  /* The font draws the dot near the right of its box: less room before it than after. */
+  margin: 0 0.5em 0 0.2em;
+}
 .linklike:hover {
   text-decoration-thickness: 2px;
 }
