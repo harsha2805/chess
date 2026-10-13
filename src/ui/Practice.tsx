@@ -2,7 +2,7 @@ import { Chess, type Move, type Square } from 'chess.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { moveLabel } from '../lib/explain';
 import { recordsFromPgn } from '../lib/importers';
-import { ANALYSIS_DEPTH, BOT_ELO_MIN, ENGINE_ELO_MAX, analyse, botMove, closePractice, startingElo, stopAnalysis, type Analysis } from '../lib/practice';
+import { ANALYSIS_DEPTH, BOT_ELO_MIN, ENGINE_ELO_MAX, analyse, analysisDepth, botMove, closePractice, startingElo, stopAnalysis, type Analysis } from '../lib/practice';
 import { formatScore } from '../lib/score';
 import { addGames, holdDeepening, savePracticeLine } from '../lib/store';
 import type { Color, GameRecord, ParsedGame, PracticeLine, Result } from '../lib/types';
@@ -102,16 +102,25 @@ export function PracticeView({ game, parsed, start, onExit }: { game: GameRecord
   const over = mode === 'play' ? outcome(baseFen, steps, resigned) : null;
   const myTurn = mode === 'explore' || (turn === side && atEnd && !over && !thinking);
 
-  // Full-strength analysis of the position on the board, while it is shown.
+  // Full-strength analysis of the position on the board, while it is shown and the tab is in view.
+  const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
   useEffect(() => {
-    if (!showEngine) {
+    const onVisibility = () => setHidden(document.hidden);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+  // On a phone the analysis stops sooner; "Look deeper" lets it go on for this position.
+  const [deeper, setDeeper] = useState<string | null>(null);
+  const depth = deeper === fen ? ANALYSIS_DEPTH : analysisDepth();
+  useEffect(() => {
+    if (!showEngine || hidden) {
       stopAnalysis();
-      setAnalysis(null);
+      if (!showEngine) setAnalysis(null);
       return;
     }
-    setAnalysis(null);
-    return analyse(fen, setAnalysis);
-  }, [fen, showEngine]);
+    setAnalysis((a) => (a && a.fen === fen ? a : null));
+    return analyse(fen, setAnalysis, depth);
+  }, [fen, showEngine, hidden, depth]);
 
   const go = (next: number) => {
     const target = Math.max(0, Math.min(steps.length, next));
@@ -446,9 +455,13 @@ export function PracticeView({ game, parsed, start, onExit }: { game: GameRecord
                     <b className="num">{formatScore(analysis.score)}</b>
                     <span className="muted num">
                       {' '}
-                      depth {analysis.depth}
-                      {analysis.done ? '' : ` of ${ANALYSIS_DEPTH}`}
+                      {analysis.done ? `${analysis.depth} moves ahead` : `looking ${analysis.depth} of ${analysis.target} moves ahead…`}
                     </span>
+                    {analysis.done && analysis.target < ANALYSIS_DEPTH && (
+                      <button type="button" className="pill" onClick={() => setDeeper(fen)}>
+                        Look deeper
+                      </button>
+                    )}
                   </p>
                   <ol className="practice-lines">
                     {analysis.lines.map((l, i) => (

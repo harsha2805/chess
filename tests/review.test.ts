@@ -57,10 +57,11 @@ describe('review with the real engine', () => {
   let opera: GameReview;
   const book = loadBook();
 
+  // A whole game at depth 12: slower while the other test files keep engines busy too.
   beforeAll(async () => {
     engine = createNodeEngine();
     opera = await analyzeGame(parsePgn(readFileSync('tests/games/opera.pgn', 'utf8')), engine, { depth: 12, book });
-  });
+  }, 60000);
   afterAll(() => engine.dispose());
 
   it('names the opening and marks theory as book', () => {

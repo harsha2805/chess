@@ -143,6 +143,8 @@ interface BuildContext {
   book?: BookLookup;
   depth: number;
   engine: string;
+  /** Set when the critical positions were searched again this deep: how deep, and how many. */
+  verify?: { depth: number; positions: number };
 }
 
 /** The score of a position, seen one move earlier: a mate takes one more move for the side delivering it. */
@@ -439,6 +441,7 @@ export function buildReview(game: ParsedGame, evals: PositionEval[], ctx: BuildC
     engine: ctx.engine,
     depth: ctx.depth,
     ...depthReached(evals, ctx.depth),
+    ...(ctx.verify ? { verifyDepth: ctx.verify.depth, verified: ctx.verify.positions } : {}),
     analyzedAt: Date.now(),
     startEval: scores[0],
     moves,

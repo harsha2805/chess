@@ -89,6 +89,14 @@ class GameSyncTest extends TestCase
         $this->assertSame($next, $this->pull()->json('games.0.review'));
     }
 
+    public function test_a_deep_review_with_its_critical_moves_checked_deeper_wins(): void
+    {
+        $checked = self::review(16, 100, ['reached' => 16, 'verifyDepth' => 24, 'verified' => 6]);
+        $this->push(['upsert' => [$this->game('chesscom:a', ['review' => $checked, 'reviewAt' => 100])]]);
+        $this->push(['upsert' => [$this->game('chesscom:a', ['review' => self::review(16, 200, ['reached' => 16]), 'reviewAt' => 200])]]);
+        $this->assertSame($checked, $this->pull()->json('games.0.review'));
+    }
+
     public function test_an_equal_review_does_not_replace_the_stored_one(): void
     {
         $first = self::review(16, 100, ['engine' => 'one']);

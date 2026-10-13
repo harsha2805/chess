@@ -69,6 +69,13 @@ export function About() {
         that takes on your device.
       </p>
       <p>
+        A Deep review then checks the moves its verdict rests on, every mistake, blunder, miss, brilliant and great move, by searching
+        the positions around them again, 24 moves ahead. A sharp combination can stay hidden at 16 moves ahead: in one real game a rook
+        sacrifice that looked level there was worth almost eight pawns. The check usually adds 20 to 60 seconds to a game. On the
+        practice board, Stockfish keeps looking deeper for as long as you stay on a position, up to 30 moves ahead on a computer and 22
+        on a phone, where you can ask it to look deeper.
+      </p>
+      <p>
         On a computer with processor cores to spare, up to three copies of Stockfish run at once and share the work: each takes its own
         stretch of the game, so a single game finishes sooner, and so does a batch. The game you open always comes first. Phones and tablets
         use one copy, to save the battery.

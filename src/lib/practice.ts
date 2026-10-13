@@ -10,8 +10,19 @@ import type { UciEngine } from './uci';
 // strength turned down, and an option set on an engine stays set, so sharing one with the
 // reviews would weaken them. The analysis engine always plays at full strength.
 
-/** How far the live analysis looks: past the Deep review's 16, since it studies one position at a time. */
-export const ANALYSIS_DEPTH = 20;
+/**
+ * How far the live analysis looks. It keeps going while the person stays on a position, so a
+ * sharp combination that only shows 25 moves ahead is found. Phones stop sooner, to spare the
+ * battery, unless asked to look deeper.
+ */
+export const ANALYSIS_DEPTH = 30;
+export const PHONE_ANALYSIS_DEPTH = 22;
+
+/** How far to look on this device. */
+export function analysisDepth(): number {
+  if (typeof window === 'undefined') return ANALYSIS_DEPTH;
+  return window.matchMedia?.('(pointer: coarse)').matches ? PHONE_ANALYSIS_DEPTH : ANALYSIS_DEPTH;
+}
 
 /** Stockfish limits its own strength only between these ratings. */
 export const ENGINE_ELO_MIN = 1320;
@@ -36,7 +47,9 @@ export interface Analysis {
   lines: AnalysisLine[];
   /** White's point of view. */
   score: Score;
-  /** True once the search has reached ANALYSIS_DEPTH. */
+  /** How far this search goes. */
+  target: number;
+  /** True once the search has reached `target`. */
   done: boolean;
 }
 
@@ -90,15 +103,15 @@ function terminal(fen: string): Score | null {
 let analysisToken = 0;
 
 /**
- * Analyses `fen` at full strength, reporting each deeper result as it arrives, best three
- * lines first. A new call stops the one before. Returns a function that stops it.
+ * Analyses `fen` at full strength to `depth` moves ahead, reporting each deeper result as it
+ * arrives, best three lines first. A new call stops the one before. Returns a function that stops it.
  */
-export function analyse(fen: string, onUpdate: (a: Analysis) => void): () => void {
+export function analyse(fen: string, onUpdate: (a: Analysis) => void, depth = analysisDepth()): () => void {
   const token = ++analysisToken;
   const live = () => token === analysisToken;
   const end = terminal(fen);
   if (end) {
-    onUpdate({ fen, depth: 0, lines: [], score: end, done: true });
+    onUpdate({ fen, depth: 0, target: depth, lines: [], score: end, done: true });
     return () => undefined;
   }
   const turn = new Chess(fen).turn();
@@ -110,10 +123,10 @@ export function analyse(fen: string, onUpdate: (a: Analysis) => void): () => voi
       const pv = sanLine(fen, r.pv);
       return { uci: r.move, san: pv[0] ?? r.move, pv, score: toWhite(r, turn) };
     });
-    onUpdate({ fen, depth: raw[0].depth, lines, score: lines[0].score, done });
+    onUpdate({ fen, depth: raw[0].depth, target: depth, lines, score: lines[0].score, done });
   };
   void eng
-    .search(fen, { depth: ANALYSIS_DEPTH, multipv: 3, onUpdate: (raw) => report(raw, false) })
+    .search(fen, { depth, multipv: 3, onUpdate: (raw) => report(raw, false) })
     .then((raw) => report(raw, true))
     .catch(() => undefined);
   return () => {

@@ -153,6 +153,13 @@ export interface GameReview {
   reached?: number;
   /** How many positions the time limit stopped before `depth`. Missing on older reviews. */
   capped?: number;
+  /**
+   * A Deep review then searches the positions around its critical moves (mistakes, blunders,
+   * misses, brilliant and great moves) this many moves ahead. Missing when not done.
+   */
+  verifyDepth?: number;
+  /** How many positions that deeper check searched. */
+  verified?: number;
   analyzedAt: number;
   startEval: Score;
   moves: MoveReview[];
@@ -228,11 +235,12 @@ export const isReviewed = (g: GameRecord) => !!g.review && g.review.version === 
 
 /**
  * How strong a review is, compared key by key: the review format first (an outdated review is
- * not shown at all), then the depth asked for, then the depth reached, then the later one.
+ * not shown at all), then the depth asked for, then the depth reached, then how deep its
+ * critical moves were checked, then the later one.
  * The server ranks reviews the same way (GameSync::rank).
  */
 export function reviewRank(r: GameReview): number[] {
-  return [r.version ?? 0, r.depth ?? 0, r.reached ?? r.depth ?? 0, r.analyzedAt ?? 0];
+  return [r.version ?? 0, r.depth ?? 0, r.reached ?? r.depth ?? 0, r.verifyDepth ?? 0, r.analyzedAt ?? 0];
 }
 
 /** Below zero when `a` is the weaker review, above zero when it is the stronger, zero when they rank the same. */

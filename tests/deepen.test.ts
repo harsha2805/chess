@@ -55,6 +55,8 @@ describe('background Deep reviews', () => {
     // Deep, made quicker for the tests. It has no time limit.
     expect(DEPTHS.deep.movetime).toBeUndefined();
     DEPTHS.deep.depth = 11;
+    // The deeper check on critical moves, likewise made quicker.
+    store.VERIFY.depth = 12;
     store.idleTuning.graceMs = 0;
     store.idleTuning.startDelayMs = 0;
     store.setDeepenClaims(claims);
@@ -95,7 +97,13 @@ describe('background Deep reviews', () => {
       expect(review.moves).toHaveLength(game(id)!.plies);
       expect(review.reached).toBe(DEPTHS.deep.depth);
       expect(review.capped).toBe(0);
+      // The positions around its critical moves were searched again, deeper.
+      expect(review.verifyDepth).toBe(12);
+      expect(review.verified).toBeGreaterThanOrEqual(0);
+      expect(store.isDeep(review)).toBe(true);
     }
+    // Morphy's Opera game has brilliant moves: their positions get the deeper check.
+    expect(game(opera.id)!.review!.verified).toBeGreaterThan(0);
     expect(claims.claimed).toEqual(seen);
     // Finished reviews keep their claim until their upload ends it on the server.
     expect(claims.released).toEqual([]);

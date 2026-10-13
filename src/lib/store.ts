@@ -71,10 +71,14 @@ export function reviewShortfall(review: GameReview): string | null {
 
 /**
  * True when the review is a full Deep review in the current format: one the time limit Deep
- * used to have did not cut short.
+ * used to have did not cut short, with its critical moves checked deeper.
  */
 export const isDeep = (review: GameReview | undefined) =>
-  !!review && review.version === REVIEW_VERSION && review.depth >= DEPTHS.deep.depth && !review.capped;
+  !!review &&
+  review.version === REVIEW_VERSION &&
+  review.depth >= DEPTHS.deep.depth &&
+  !review.capped &&
+  (review.verifyDepth ?? 0) >= VERIFY.depth;
 
 /** True when the chosen setting would look further ahead than the review already saved. */
 export function canDeepen(game: GameRecord, preset: DepthPreset): boolean {
@@ -380,6 +384,11 @@ interface Job {
   finished?: boolean;
   /** Called when the job leaves the queue, for whatever it holds (a tab lock, a claim). */
   release?: () => void;
+  /**
+   * For a Deep review, once every position is done: the positions around its critical moves,
+   * searched again VERIFY.depth moves ahead. Empty when there were none.
+   */
+  verify?: number[];
 }
 
 /** Reviews still to finish, front of the queue first. */
@@ -451,6 +460,39 @@ async function laneEngine(lane: number): Promise<UciEngine> {
   return (engines[lane] ??= await start(WASM_ENGINE, 45000));
 }
 
+/**
+ * How far a Deep review searches the positions around its critical moves again. Sharp
+ * combinations can stay hidden at 16 moves ahead: a rook sacrifice scored 0.0 there was +6.8
+ * at 24 (and +7.9 at 28). Measured on real games, it adds 20 to 60 seconds to a Deep review.
+ */
+export const VERIFY = { depth: 24 };
+/** Moves whose positions get the deeper check: the ones a review's verdict rests on. */
+const CRITICAL_MARKS = new Set(['mistake', 'blunder', 'miss', 'brilliant', 'great']);
+
+/** Every position a job will search: the full pass, then the deeper check. */
+const totalOf = (job: Job) => job.fens.length + (job.verify?.length ?? 0);
+
+/**
+ * Starts a Deep review's deeper check once the full pass is done: the positions before and
+ * after each critical move. Nothing is skipped; these positions are searched again, deeper.
+ * False when there is no check to do, so the review is written.
+ */
+function startVerify(job: Job): boolean {
+  if (job.verify || job.preset.depth < DEPTHS.deep.depth || state.slowEngine) return false;
+  const provisional = buildReview(job.game!, job.evals, { depth: job.preset.depth, engine: '' });
+  const positions = new Set<number>();
+  provisional.moves.forEach((m, i) => {
+    if (!CRITICAL_MARKS.has(m.mark)) return;
+    positions.add(i);
+    positions.add(i + 1);
+  });
+  job.verify = [...positions].sort((a, b) => a - b);
+  if (job.verify.length === 0) return false;
+  job.stretches = [{ lo: 0, next: job.verify.length - 1, lane: null }];
+  setProgress(job, true);
+  return true;
+}
+
 /** The backup engine is several times slower, so it looks less far ahead. */
 const SLOW_PRESET = { depth: 8, movetime: 400 };
 
@@ -472,7 +514,7 @@ function setProgress(job: Job, force = false) {
   const now = performance.now();
   if (!force && now - job.lastPaint < 150) return;
   job.lastPaint = now;
-  const next = { id: job.id, done: job.done, total: job.fens.length };
+  const next = { id: job.id, done: job.done, total: totalOf(job) };
   if (job.background) {
     set({ deepening: next });
     return;
@@ -570,7 +612,12 @@ function outranked(job: Job): boolean {
 async function finish(job: Job, engineName: string) {
   const book = await loadBook().catch(() => undefined);
   if (job.cancelled) return;
-  const review = buildReview(job.game!, job.evals, { book, depth: job.preset.depth, engine: engineName });
+  const review = buildReview(job.game!, job.evals, {
+    book,
+    depth: job.preset.depth,
+    engine: engineName,
+    verify: job.verify ? { depth: VERIFY.depth, positions: job.verify.length } : undefined,
+  });
   job.finished = true;
   dropJob(job);
   if (job.background) bgTried.add(job.id);
@@ -635,9 +682,11 @@ async function runLane(lane: number) {
             break;
           }
           const i = stretch.next;
-          const key = repeatKey(job.fens[i]);
+          // In the deeper check, the stretch runs over the list of critical positions.
+          const pos = job.verify ? job.verify[i] : i;
+          const key = job.verify ? null : repeatKey(job.fens[pos]);
           const twin = key ? job.seen.get(key) : undefined;
-          const result = twin !== undefined ? job.evals[twin] : await evaluatePosition(job.fens[i], eng, job.preset);
+          const result = twin !== undefined ? job.evals[twin] : await evaluatePosition(job.fens[pos], eng, job.verify ? VERIFY : job.preset);
           if (job.cancelled) break;
           if (job.interrupted) {
             // The search was stopped to make way for a review asked for, so it did not look
@@ -646,11 +695,11 @@ async function runLane(lane: number) {
             stretch.lane = null;
             break;
           }
-          job.evals[i] = result;
-          if (key) job.seen.set(key, i);
+          job.evals[pos] = result;
+          if (key) job.seen.set(key, pos);
           job.done++;
           stretch.next = i - 1;
-          setProgress(job, job.done === job.fens.length);
+          setProgress(job, job.done === totalOf(job));
         }
       } catch (e) {
         stretch.lane = null;
@@ -663,7 +712,11 @@ async function runLane(lane: number) {
       }
       if (job.cancelled) continue;
       job.stretches = job.stretches!.filter((s) => s.next >= s.lo);
-      if (job.done === job.fens.length) {
+      if (job.done === totalOf(job)) {
+        if (startVerify(job)) {
+          pump();
+          continue;
+        }
         // Not awaited: the engine can start on the next game while the review is written.
         finish(job, eng.name).catch((e) => failJob(job, e instanceof Error ? e.message : String(e)));
       } else if (stretch.lane === null) {

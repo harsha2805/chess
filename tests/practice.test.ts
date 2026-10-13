@@ -69,13 +69,18 @@ describe('live analysis', () => {
     const fen = 'r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4';
     const updates: Analysis[] = [];
     await new Promise<void>((resolve) => {
-      analyse(fen, (a) => {
-        updates.push(a);
-        if (a.done) resolve();
-      });
+      analyse(
+        fen,
+        (a) => {
+          updates.push(a);
+          if (a.done) resolve();
+        },
+        20,
+      );
     });
     const last = updates[updates.length - 1];
-    expect(last.depth).toBe(ANALYSIS_DEPTH);
+    expect(ANALYSIS_DEPTH).toBe(30);
+    expect(last.depth).toBe(20);
     expect(last.lines[0].san).toBe('Qxf7#');
     expect(last.score.mate).toBe(1);
   });

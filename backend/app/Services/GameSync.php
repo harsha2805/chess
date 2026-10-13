@@ -27,20 +27,20 @@ class GameSync
 
     /**
      * How strong a review is, compared element by element as the app does (reviewRank in
-     * src/lib/types.ts): the review format, the depth asked for, the depth reached, then the
-     * time it was made. Reviews that predate a field count it as 0.
+     * src/lib/types.ts): the review format, the depth asked for, the depth reached, how deep its
+     * critical moves were checked, then the time it was made. Reviews that predate a field count it as 0.
      *
-     * @return array{int, int, float, int}
+     * @return array{int, int, float, int, int}
      */
     public static function rank(?string $review, ?int $ms): array
     {
         $r = $review === null ? null : json_decode($review, true);
         if (! is_array($r)) {
-            return [0, 0, 0.0, $ms ?? 0];
+            return [0, 0, 0.0, 0, $ms ?? 0];
         }
         $depth = (int) ($r['depth'] ?? 0);
 
-        return [(int) ($r['version'] ?? 0), $depth, (float) ($r['reached'] ?? $depth), $ms ?? (int) ($r['analyzedAt'] ?? 0)];
+        return [(int) ($r['version'] ?? 0), $depth, (float) ($r['reached'] ?? $depth), (int) ($r['verifyDepth'] ?? 0), $ms ?? (int) ($r['analyzedAt'] ?? 0)];
     }
 
     /**
