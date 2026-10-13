@@ -74,15 +74,25 @@ export const ENDING_LABEL: Record<Ending, string> = {
   stalemate: 'Stalemate',
   insufficient: 'Insufficient material',
   fifty: '50-move rule',
-  'time-insufficient': 'Time out, no mating material',
+  'time-insufficient': 'Timeout vs insufficient material',
 };
 
 /**
- * The result in words, with how it came about: "White won by resignation", "Black won on
- * time", "White won: Black abandoned the game", "Draw by repetition".
+ * Who was to move when the game ended: the side whose clock ran out, in a game lost or drawn
+ * on time. The game starts with White to move unless its PGN sets up a position with Black to move.
+ */
+function toMoveAtEnd(game: GameRecord): 'w' | 'b' {
+  const blackFirst = /\[FEN "[^"]* b /.test(game.pgn ?? '');
+  return (game.plies % 2 === 0) !== blackFirst ? 'w' : 'b';
+}
+
+/**
+ * The result in words, naming the player who resigned, left or ran out of time: "White won:
+ * ben resigned", "Black won: ana ran out of time", "White won by checkmate", "Draw by repetition".
  */
 export function resultWithEnding(game: GameRecord): string {
   const { result, ending } = game;
+  const name = (color: 'w' | 'b') => (color === 'w' ? game.white?.name : game.black?.name) || (color === 'w' ? 'White' : 'Black');
   if (result === '*') return 'Unfinished';
   if (result === '1/2-1/2') {
     switch (ending) {
@@ -96,22 +106,25 @@ export function resultWithEnding(game: GameRecord): string {
         return 'Draw: neither side can mate';
       case 'fifty':
         return 'Draw by the 50-move rule';
-      case 'time-insufficient':
-        return 'Draw: time ran out, but the other side could not mate';
+      case 'time-insufficient': {
+        // As chess.com puts it: the clock ran out, but the other side could never have mated.
+        const flagged = toMoveAtEnd(game);
+        return `Draw: ${name(flagged)} ran out of time, but ${name(flagged === 'w' ? 'b' : 'w')} could not have forced checkmate`;
+      }
       default:
         return 'Draw';
     }
   }
   const winner = result === '1-0' ? 'White' : 'Black';
   // Who resigned or left is named, as the players are on the board.
-  const loser = (result === '1-0' ? game.black?.name : game.white?.name) || (result === '1-0' ? 'Black' : 'White');
+  const loser = name(result === '1-0' ? 'b' : 'w');
   switch (ending) {
     case 'checkmate':
       return `${winner} won by checkmate`;
     case 'resignation':
       return `${winner} won: ${loser} resigned`;
     case 'time':
-      return `${winner} won on time`;
+      return `${winner} won: ${loser} ran out of time`;
     case 'abandoned':
       return `${winner} won: ${loser} abandoned the game`;
     default:

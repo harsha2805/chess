@@ -71,11 +71,15 @@ describe('how a game ended', () => {
     const game = (result: Result, end: GameRecord['ending']) => ({ result, ending: end, white: { name: 'ana' }, black: { name: 'ben' } }) as GameRecord;
     expect(resultWithEnding(game('1-0', 'resignation'))).toBe('White won: ben resigned');
     expect(resultWithEnding(game('0-1', 'abandoned'))).toBe('Black won: ana abandoned the game');
-    expect(resultWithEnding(game('0-1', 'time'))).toBe('Black won on time');
+    expect(resultWithEnding(game('0-1', 'time'))).toBe('Black won: ana ran out of time');
     expect(resultWithEnding(game('1-0', 'checkmate'))).toBe('White won by checkmate');
     expect(resultWithEnding(game('1/2-1/2', 'repetition'))).toBe('Draw by repetition');
     expect(resultWithEnding(game('1-0', null))).toBe('White won');
     expect(resultWithEnding(game('*', undefined))).toBe('Unfinished');
     expect(ENDING_LABEL.abandoned).toBe('Abandoned');
+    // As in a real chess.com game: White, with a rook, ran out of time against a bare king.
+    const flagged = { ...game('1/2-1/2', 'time-insufficient'), plies: 146, pgn: '' } as GameRecord;
+    expect(resultWithEnding(flagged)).toBe('Draw: ana ran out of time, but ben could not have forced checkmate');
+    expect(resultWithEnding({ ...flagged, plies: 145 })).toBe('Draw: ben ran out of time, but ana could not have forced checkmate');
   });
 });
