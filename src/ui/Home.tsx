@@ -13,6 +13,7 @@ import {
   resetEngine,
   resumeDeepening,
   reviewSetting,
+  shownGames,
   updateSettings,
   useStore,
   type DepthPreset,
@@ -21,6 +22,7 @@ import {
 } from '../lib/store';
 import { ENDING_LABEL } from '../lib/ending';
 import type { GameRecord, TimeClass } from '../lib/types';
+import { BotToggle } from './BotToggle';
 import { ImportForm } from './ImportForm';
 import { OUTCOME_LABEL, TIME_CLASS_LABEL, agoLabel, fold, gameDateLabel, perspective, resultMark, timeLabel } from './format';
 import { outcomeFor, resolvePlayer } from '../lib/insights';
@@ -29,9 +31,12 @@ import { Welcome } from './Welcome';
 
 export function Home() {
   const ready = useStore((s) => s.ready);
-  const games = useStore((s) => s.games);
+  const all = useStore((s) => s.games);
+  const includeBots = useStore((s) => s.settings.includeBots);
+  // Games against the bot stay out of the list unless the person asks for them.
+  const games = useMemo(() => shownGames(all, includeBots), [all, includeBots]);
   if (!ready) return <p className="muted">Opening your games…</p>;
-  return games.length === 0 ? <Welcome /> : <Library games={games} />;
+  return all.length === 0 ? <Welcome /> : <Library games={games} />;
 }
 
 const SORTS: Record<GameSort, string> = {
@@ -195,6 +200,7 @@ function Library({ games }: { games: GameRecord[] }) {
       )}
 
       {adding && <ImportForm compact />}
+      <BotToggle />
 
       {games.length > 1 && (
         <div className="list-tools">

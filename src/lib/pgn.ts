@@ -40,8 +40,11 @@ export function parsePgn(pgn: string): ParsedGame {
   const comments = new Map<string, string>();
   for (const c of chess.getComments()) comments.set(c.fen, c.comment);
 
+  // A game set up from a position starts part-way: its first move is numbered as in that position.
+  const first = history[0]?.before.split(' ') ?? ['', 'w', '', '', '0', '1'];
+  const offset = (Math.max(1, Number(first[5]) || 1) - 1) * 2 + (first[1] === 'b' ? 1 : 0);
   const moves: ParsedMove[] = history.map((m, i) => ({
-    ply: i + 1,
+    ply: offset + i + 1,
     color: m.color,
     san: m.san,
     uci: m.lan,

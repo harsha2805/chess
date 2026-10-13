@@ -1,5 +1,5 @@
 import { recordFromRaw } from './importers';
-import { betterReview, compareReviews, type GameRecord, type GameReview } from './types';
+import { betterReview, compareReviews, type GameRecord, type GameReview, type PracticeLine } from './types';
 
 /** A game as the server sends it when changes are pulled. `record`, `raw` and `review` are JSON text. */
 export interface RemoteGame {
@@ -65,6 +65,23 @@ function parse<T>(text: string | null | undefined): T | null {
   }
 }
 
+/**
+ * Both copies' practice lines, each line the latest version of it, with `ahead` true when
+ * this browser has a line, or a change to one, that the other copy lacks.
+ */
+export function mergePractice(mine: PracticeLine[] = [], theirs: PracticeLine[] = []): { lines: PracticeLine[]; ahead: boolean } {
+  const byId = new Map(theirs.map((l) => [l.id, l]));
+  let ahead = false;
+  for (const l of mine) {
+    const other = byId.get(l.id);
+    if (!other || l.updatedAt > other.updatedAt) {
+      byId.set(l.id, l);
+      ahead = true;
+    }
+  }
+  return { lines: [...byId.values()].sort((a, b) => a.createdAt - b.createdAt), ahead };
+}
+
 /** Combines a pulled game with this browser's copy, if it has one. */
 export function mergeRemote(row: RemoteGame, local: GameRecord | undefined): Merge {
   if (row.deleted) return local ? { kind: 'delete' } : { kind: 'skip' };
@@ -78,6 +95,10 @@ export function mergeRemote(row: RemoteGame, local: GameRecord | undefined): Mer
   const record: GameRecord = { ...base, id: row.id, addedAt: row.addedAt || base.addedAt };
   if (review) record.review = review;
   else delete record.review;
-  const pushBack = !!local?.review && review === local.review && (!remoteReview || compareReviews(local.review, remoteReview) > 0);
+  const practice = mergePractice(local?.practice, base.practice);
+  if (practice.lines.length > 0) record.practice = practice.lines;
+  else delete record.practice;
+  const reviewAhead = !!local?.review && review === local.review && (!remoteReview || compareReviews(local.review, remoteReview) > 0);
+  const pushBack = reviewAhead || practice.ahead;
   return { kind: 'put', record, pushBack };
 }

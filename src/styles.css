@@ -724,6 +724,37 @@ textarea {
   height: 92%;
   pointer-events: none;
 }
+/* A board you can move on: squares are buttons. */
+.board.interactive .sq {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.board.interactive .sq:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+  z-index: 4;
+}
+.sq.picked {
+  box-shadow: inset 0 0 0 4px var(--focus);
+}
+/* Where the picked piece can go: a dot on an empty square, a ring around a piece to take. */
+.sq.target::after {
+  content: '';
+  position: absolute;
+  inset: 37%;
+  border-radius: 50%;
+  background: rgba(13, 24, 48, 0.32);
+  pointer-events: none;
+}
+.sq.target.capture::after {
+  inset: 5%;
+  background: none;
+  border: 5px solid rgba(13, 24, 48, 0.32);
+}
 /* A piece arriving: it slides in from its square. The image is 92% of a square, so a
    square is 100% / 0.92 of it. */
 .sq img.slide {
@@ -3214,4 +3245,226 @@ a.note-eval {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+/* ---- Practice: playing on from a position, apart from the game ---- */
+.practice-start {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+}
+.practice-sign .practice-tag {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sign-ink-2);
+}
+.practice-modes {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--sign-2);
+}
+.practice-modes button {
+  flex: 1 1 0;
+  min-height: 36px;
+  padding: 6px 12px 4px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--sign-ink);
+  font-weight: 800;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.practice-modes button[aria-selected='true'] {
+  background: var(--sign-ink);
+  color: var(--sign);
+}
+.practice-sign p.practice-from {
+  font-size: 0.9375rem;
+}
+.practice-play {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.practice-elo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+}
+.practice-elo span {
+  margin-right: auto;
+}
+.practice-elo .input {
+  width: 6.5em;
+  min-height: 34px;
+  padding: 4px 8px 2px;
+  border-color: var(--sign-line);
+  background: var(--sign);
+  color: var(--sign-ink);
+  text-align: center;
+}
+.practice-elo .btn.quiet,
+.practice-leave .btn.quiet {
+  color: var(--sign-ink);
+  box-shadow: inset 0 0 0 2px var(--sign-line);
+}
+.side .practice-sign .hint,
+.practice-play .check {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--sign-ink-2);
+}
+.practice-play .check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+.practice-play .check input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--sign-ink);
+  flex: none;
+}
+.practice-sign p.practice-over {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--sign-2);
+}
+.practice-engine {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 2px dashed var(--sign-line);
+}
+.practice-sign .practice-engine p {
+  margin: 0;
+}
+.practice-eval b {
+  font-size: 1.375rem;
+  font-weight: 900;
+}
+.practice-lines {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+.practice-lines .num {
+  display: inline-block;
+  min-width: 3.4em;
+  font-weight: 800;
+}
+.practice-moves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.practice-moves li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.practice-moves button {
+  min-height: 32px;
+  padding: 4px 8px 2px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+.practice-moves button:hover {
+  background: var(--ground-2);
+}
+.practice-moves button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--ground);
+}
+.practice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.practice-leave {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--sign);
+  color: var(--sign-ink);
+}
+.practice-leave p {
+  flex: 1 1 100%;
+  margin: 0;
+  line-height: 1.5;
+}
+.practice-leave .linklike {
+  color: var(--sign-ink-2);
+}
+.promotion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  padding-top: 12px;
+}
+.kept-lines {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.kept-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.kept-lines .linklike:first-child {
+  text-align: left;
+}
+.bot-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.bot-toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--focus);
+}
+.ins-sub .bot-toggle {
+  margin: 0;
+}
+.side .hint {
+  margin: 4px 0 0;
+  color: var(--ink-3);
+  font-size: 0.875rem;
 }

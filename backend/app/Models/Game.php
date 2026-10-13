@@ -15,7 +15,7 @@ class Game extends Model
 {
     public $timestamps = false;
 
-    public const SOURCES = ['chesscom', 'lichess', 'pgn', 'sample'];
+    public const SOURCES = ['chesscom', 'lichess', 'pgn', 'sample', 'bot'];
 
     protected function casts(): array
     {

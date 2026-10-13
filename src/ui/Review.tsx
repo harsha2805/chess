@@ -3,7 +3,19 @@ import { MARK_LABEL, MARK_ORDER, MARK_SUFFIX, NOTABLE_MARKS, PHASE_LABEL, clockT
 import { resolvePlayer } from '../lib/insights';
 import { parsePgn } from '../lib/pgn';
 import { formatScore } from '../lib/score';
-import { AUTOPLAY_SPEEDS, getState, isDeep, isReviewed, requestReview, resetEngine, reviewSetting, reviewShortfall, updateSettings, useStore } from '../lib/store';
+import {
+  AUTOPLAY_SPEEDS,
+  getState,
+  isDeep,
+  isReviewed,
+  removePracticeLine,
+  requestReview,
+  resetEngine,
+  reviewSetting,
+  reviewShortfall,
+  updateSettings,
+  useStore,
+} from '../lib/store';
 import type { Color, GameRecord, GameReview, Mark, MoveReview, ParsedGame } from '../lib/types';
 import { Board, EvalBar } from './Board';
 import { EvalGraph } from './EvalGraph';
@@ -11,6 +23,7 @@ import { MarkTag } from './MarkTag';
 import { ENDING_LABEL, resultWithEnding } from '../lib/ending';
 import { gameDateLabel, gameSite, perspective, resultMark, timeLabel } from './format';
 import { IconExternal, IconFirst, IconFlip, IconLast, IconNext, IconPause, IconPlay, IconPrev } from './icons';
+import { PracticeView, type PracticeMode, type PracticeStart } from './Practice';
 import { href } from './router';
 
 export function Review({ id, startPly }: { id: string; startPly?: number }) {
@@ -49,6 +62,10 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
   });
   const [showBest, setShowBest] = useState(false);
   const [playing, setPlaying] = useState(false);
+  // Playing on from a position, apart from the game: null while reviewing the game itself.
+  const [practice, setPractice] = useState<PracticeStart | null>(null);
+  const practiceRef = useRef(practice);
+  practiceRef.current = practice;
   // Only a step of one move forward slides the piece; a jump shows the new position at once.
   const [slide, setSlide] = useState(false);
   const speed = useStore((s) => s.settings.autoplay);
@@ -91,6 +108,8 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Practice has its own keys.
+      if (practiceRef.current) return;
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       if (e.altKey || e.ctrlKey || e.metaKey) return;
@@ -139,6 +158,12 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
   };
 
   const top: Color = orientation === 'w' ? 'b' : 'w';
+  const startPractice = (mode: PracticeMode, fromPly = ply, moves: string[] = []) => {
+    setPlaying(false);
+    setShowBest(false);
+    setPractice({ fromPly, moves, mode });
+  };
+  const keptLines = (game.practice ?? []).filter((l) => !l.deleted);
   const boardLabel = move
     ? viewingBest
       ? `Position before ${moveLabel(move)}, with the engine's choice ${moveReview!.best!.san} shown as an arrow.`
@@ -179,6 +204,18 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
         </div>
       </header>
 
+      {practice ? (
+        <PracticeView
+          game={game}
+          parsed={parsed}
+          start={practice}
+          onExit={() => {
+            setPlyRaw(practice.fromPly);
+            setSlide(false);
+            setPractice(null);
+          }}
+        />
+      ) : (
       <div className="review">
         <div className="stage">
           <div className="stage-inner">
@@ -239,15 +276,31 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
               <IconFlip />
             </button>
           </div>
+          <div className="practice-start">
+            <button className="btn quiet small" type="button" onClick={() => startPractice('explore')}>
+              Explore from here
+            </button>
+            <button className="btn quiet small" type="button" onClick={() => startPractice('play')}>
+              Play from here against Stockfish
+            </button>
+          </div>
         </div>
 
         <div className="side">
           <section className="sign" aria-live="polite">
             {review ? (
-              <Note game={game} review={review} move={moveReview} showBest={viewingBest} bestDiffers={bestDiffers} onToggleBest={() => {
+              <Note
+                game={game}
+                review={review}
+                move={moveReview}
+                showBest={viewingBest}
+                bestDiffers={bestDiffers}
+                onToggleBest={() => {
                   setPlaying(false);
                   setShowBest((v) => !v);
-                }} />
+                }}
+                onTryBest={() => moveReview?.best && startPractice('explore', ply - 1, [moveReview.best.san])}
+              />
             ) : (
               <Waiting game={game} />
             )}
@@ -264,6 +317,26 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
             <Notation parsed={parsed} review={review} ply={ply} onSelect={setPly} result={game.result} ending={game.ending} />
           </section>
 
+          {keptLines.length > 0 && (
+            <section>
+              <h2 className="section-title">Your lines from this game</h2>
+              <p className="hint">Practice you kept. Never part of the review or your stats.</p>
+              <ul className="kept-lines">
+                {keptLines.map((l) => (
+                  <li key={l.id}>
+                    <button type="button" className="linklike" onClick={() => setPractice({ fromPly: l.fromPly, moves: l.moves, mode: 'explore', line: l })}>
+                      {l.fromPly === 0 || !parsed.moves[l.fromPly - 1] ? 'From the start' : `After ${moveLabel(parsed.moves[l.fromPly - 1])}`}: {l.moves.slice(0, 6).join(' ')}
+                      {l.moves.length > 6 ? ' …' : ''}
+                    </button>
+                    <button type="button" className="linklike muted" onClick={() => void removePracticeLine(game.id, l.id)} aria-label="Remove this line">
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {review && (
             <section>
               <h2 className="section-title">Summary</h2>
@@ -272,6 +345,7 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
           )}
         </div>
       </div>
+      )}
     </>
   );
 }
@@ -418,9 +492,11 @@ interface NoteProps {
   showBest: boolean;
   bestDiffers: boolean;
   onToggleBest: () => void;
+  /** Plays the better move on a practice board, to see how the game could have gone. */
+  onTryBest: () => void;
 }
 
-function Note({ game, review, move, showBest, bestDiffers, onToggleBest }: NoteProps) {
+function Note({ game, review, move, showBest, bestDiffers, onToggleBest, onTryBest }: NoteProps) {
   if (!move) {
     return (
       <>
@@ -480,6 +556,9 @@ function Note({ game, review, move, showBest, bestDiffers, onToggleBest }: NoteP
               {lineText(move.ply, move.best.pv.slice(0, 4))}
               <button className="pill" type="button" onClick={onToggleBest}>
                 {showBest ? 'Back to the move played' : 'Show on the board'}
+              </button>
+              <button className="pill" type="button" onClick={onTryBest} title="Play it and carry on from there, with Stockfish watching">
+                Try it
               </button>
             </p>
           )}
@@ -543,14 +622,16 @@ function Notation({ parsed, review, ply, onSelect, result, ending }: NotationPro
 
   const cell = (m: ParsedGame['moves'][number] | undefined) => {
     if (!m) return <span />;
-    const r = review?.moves[m.ply - 1];
+    // Its place in the game, which is its label too unless the game was set up from a position.
+    const at = parsed.moves.indexOf(m) + 1;
+    const r = review?.moves[at - 1];
     return (
       <button
         type="button"
         className="mv"
-        aria-current={ply === m.ply ? 'true' : undefined}
+        aria-current={ply === at ? 'true' : undefined}
         aria-label={`${moveLabel(m)}${r ? `, ${MARK_LABEL[r.mark]}` : ''}`}
-        onClick={() => onSelect(m.ply)}
+        onClick={() => onSelect(at)}
       >
         {r && NOTABLE_MARKS.includes(r.mark) && <MarkTag mark={r.mark} labelled />}
         {m.san}
@@ -586,7 +667,7 @@ function Summary({ game, review, ply, onSelect }: { game: GameRecord; review: Ga
 
   /** Jumps to the next move of that side with that mark, going round at the end. */
   const jump = (color: Color, mark: Mark) => {
-    const hits = review.moves.filter((m) => m.color === color && m.mark === mark).map((m) => m.ply);
+    const hits = review.moves.flatMap((m, i) => (m.color === color && m.mark === mark ? [i + 1] : []));
     if (hits.length === 0) return;
     onSelect(hits.find((p) => p > ply) ?? hits[0]);
   };

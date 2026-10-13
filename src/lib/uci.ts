@@ -110,11 +110,13 @@ export class UciEngine implements Engine {
         this.multipv = opts.multipv;
       }
       const lines = new Map<number, RawLine>();
+      const sorted = () => [...lines.entries()].sort((a, b) => a[0] - b[0]).map(([, l]) => l);
       this.infoHandler = (line) => {
         const info = parseInfo(line);
         if (!info) return;
         const { multipv, ...rest } = info;
         lines.set(multipv, rest);
+        opts.onUpdate?.(sorted());
       };
       const done = this.waitFor((l) => l.startsWith('bestmove'));
       this.transport.send(`position fen ${fen}`);
@@ -124,7 +126,19 @@ export class UciEngine implements Engine {
       } finally {
         this.infoHandler = null;
       }
-      return [...lines.entries()].sort((a, b) => a[0] - b[0]).map(([, l]) => l);
+      return sorted();
+    });
+  }
+
+  /**
+   * Sets UCI options, such as the playing strength. Only for an engine kept apart from the
+   * reviews: an option set here stays in force for every later search on this engine.
+   */
+  setOptions(options: Record<string, string | number | boolean>): Promise<void> {
+    return this.enqueue(async () => {
+      await this.ready;
+      for (const [name, value] of Object.entries(options)) this.transport.send(`setoption name ${name} value ${value}`);
+      await this.sync();
     });
   }
 

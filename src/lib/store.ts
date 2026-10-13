@@ -8,7 +8,17 @@ import { PREVIEW } from '../config';
 import { ASM_ENGINE, WASM_ENGINE, createBrowserEngine } from './engine-browser';
 import type { Platform } from './importers';
 import { parsePgn } from './pgn';
-import { REVIEW_VERSION, betterReview, compareReviews, isReviewed, type GameRecord, type GameReview, type ParsedGame, type PositionEval } from './types';
+import {
+  REVIEW_VERSION,
+  betterReview,
+  compareReviews,
+  isReviewed,
+  type GameRecord,
+  type GameReview,
+  type ParsedGame,
+  type PositionEval,
+  type PracticeLine,
+} from './types';
 import type { UciEngine } from './uci';
 
 export type DepthPreset = 'quick' | 'standard' | 'deep';
@@ -83,6 +93,8 @@ export interface Settings {
   sort: GameSort;
   /** Give games a Deep review in the background while nothing else is being reviewed. */
   deepenIdle: boolean;
+  /** Show games played against the bot in the games list and count them in the insights. */
+  includeBots: boolean;
 }
 
 export type GameSort = 'newest' | 'oldest' | 'added' | 'best' | 'worst';
@@ -137,6 +149,7 @@ const defaults: Settings = {
   autoplay: 1,
   sort: 'newest',
   deepenIdle: suitsDeepening(),
+  includeBots: false,
 };
 
 function readSettings(): Settings {
@@ -242,8 +255,12 @@ export async function addGames(records: GameRecord[]): Promise<number> {
     const old = existing.get(r.id);
     if (!old) added++;
     const review = betterReview(old?.review, stored.get(r.id)?.review);
-    const merged = old ? { ...r, addedAt: old.addedAt, review, me: r.me ?? old.me, account: r.account ?? old.account } : r;
+    const merged = old
+      ? { ...r, addedAt: old.addedAt, review, practice: r.practice ?? old.practice, bot: r.bot ?? old.bot, me: r.me ?? old.me, account: r.account ?? old.account }
+      : r;
     if (!merged.review) delete merged.review;
+    if (!merged.practice) delete merged.practice;
+    if (!merged.bot) delete merged.bot;
     existing.set(r.id, merged);
     changed.push(merged);
   }
@@ -498,8 +515,8 @@ function failJob(job: Job, message: string) {
 function takeWork(lane: number): { job: Job; stretch: Stretch } | null {
   for (const job of [...jobs]) {
     if (!hasWork(job)) continue;
-    // A background review keeps to the main engine, leaving the other cores free.
-    if (job.background && lane !== 0) continue;
+    // A background review keeps to the main engine, leaving the other cores free, and waits while held.
+    if (job.background && (lane !== 0 || holds > 0)) continue;
     if (job.background && state.slowEngine) {
       // The backup engine cannot look as far as a Deep review does: no background reviews this visit.
       idleBlocked = true;
@@ -611,7 +628,7 @@ async function runLane(lane: number) {
       try {
         // Another engine may take part of the stretch meanwhile, raising `lo`.
         while (stretch.next >= stretch.lo && !job.cancelled) {
-          if (job.interrupted || outranked(job)) {
+          if (job.interrupted || outranked(job) || (job.background && holds > 0)) {
             // Leave the rest for later and help with the game nearer the front.
             job.interrupted = false;
             stretch.lane = null;
@@ -853,6 +870,7 @@ function wantsDeep(g: GameRecord): boolean {
 
 function idleReady(): boolean {
   return (
+    holds === 0 &&
     state.settings.deepenIdle &&
     state.ready &&
     !state.deepenPaused &&
@@ -952,7 +970,9 @@ async function startIdleDeepen() {
     if (!(await onMains())) return; // Plugging in schedules another try.
     // Without an account, a page that cannot store games would lose the work when it closes.
     if (!isPersistent() && !claims) return;
-    for (const game of state.games) {
+    // Real games first; games against the bot after them.
+    const order = [...state.games.filter((g) => g.source !== 'bot'), ...state.games.filter((g) => g.source === 'bot')];
+    for (const game of order) {
       if (!idleReady()) return;
       if (bgTried.has(game.id) || state.failures[game.id] || !wantsDeep(game)) continue;
       // Another tab may have done it already.
@@ -1031,4 +1051,54 @@ function stopDeepening() {
 /** How many games are still waiting for a Deep review in the background. */
 export function deepenRemaining(games: GameRecord[]): number {
   return games.filter((g) => wantsDeep(g) && !bgTried.has(g.id)).length;
+}
+
+/** Holds the background Deep reviews back, as while the person practises: the engine they need comes first. */
+let holds = 0;
+
+/** While held, the background review stops at once and waits; it carries on, from where it was, once released. */
+export function holdDeepening(): () => void {
+  holds++;
+  clearTimeout(idleTimer);
+  yieldBackground();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    holds--;
+    if (holds === 0) {
+      pump();
+      scheduleIdle();
+    }
+  };
+}
+
+// ---- Practice kept with a game, and games against the bot ----
+
+/** The games to list and count: real games only, unless the person chose to include games against the bot. */
+export function shownGames(games: GameRecord[], includeBots: boolean): GameRecord[] {
+  return includeBots ? games : games.filter((g) => g.source !== 'bot');
+}
+
+async function updateGame(id: string, change: (g: GameRecord) => GameRecord) {
+  const current = state.games.find((g) => g.id === id);
+  if (!current) return;
+  const updated = change(current);
+  set({ games: state.games.map((g) => (g.id === id ? updated : g)) });
+  await saveGames([updated]);
+  changeListener?.({ saved: [id], deleted: [] });
+}
+
+/** Keeps an explored line with its game, or updates one kept before. The review is not touched. */
+export function savePracticeLine(gameId: string, line: PracticeLine): Promise<void> {
+  return updateGame(gameId, (g) => ({ ...g, practice: [...(g.practice ?? []).filter((l) => l.id !== line.id), line] }));
+}
+
+/** Removes a kept line. A marker stays, so the removal reaches the person's other devices. */
+export function removePracticeLine(gameId: string, lineId: string): Promise<void> {
+  const now = Date.now();
+  return updateGame(gameId, (g) => ({
+    ...g,
+    practice: (g.practice ?? []).map((l) => (l.id === lineId ? { id: l.id, fromPly: l.fromPly, moves: [], createdAt: l.createdAt, updatedAt: now, deleted: true } : l)),
+  }));
 }

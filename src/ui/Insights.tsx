@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { MARK_LABEL, MARK_ORDER, PHASE_LABEL, moveLabel } from '../lib/explain';
 import { buildInsights, colorOf, extremes, insightPlayers, outcomeFor, resolvePlayer, type Insights as InsightsData, type RatingStat, type TrendPoint } from '../lib/insights';
-import { isReviewed, requestReview, updateSettings, useStore } from '../lib/store';
+import { isReviewed, requestReview, shownGames, updateSettings, useStore } from '../lib/store';
+import { BotToggle } from './BotToggle';
 import type { GameRecord } from '../lib/types';
 import { MarkTag } from './MarkTag';
 import { OUTCOME_LABEL, TIME_CLASS_LABEL, dateLabel, gameDateLabel, perspective } from './format';
@@ -11,7 +12,10 @@ import { href, navigate } from './router';
 
 export function Insights() {
   const ready = useStore((s) => s.ready);
-  const games = useStore((s) => s.games);
+  const all = useStore((s) => s.games);
+  const includeBots = useStore((s) => s.settings.includeBots);
+  // Real games only, unless the person asks for their games against the bot too.
+  const games = useMemo(() => shownGames(all, includeBots), [all, includeBots]);
   const stored = useStore((s) => s.settings.player);
   const working = useStore((s) => s.active.length > 0 || s.queue.length > 0);
 
@@ -66,6 +70,7 @@ export function Insights() {
           </button>
         )}
         {working && <span>Reviewing more games now. This page updates as they finish.</span>}
+        <BotToggle />
       </div>
 
       {data.reviewed === 0 ? (
@@ -343,7 +348,7 @@ function Motifs({ data, top }: { data: InsightsData; top: number }) {
             <ul className="examples">
               {m.examples.map((ex) => (
                 <li key={`${ex.gameId}${ex.ply}`}>
-                  <a href={href('game', ex.gameId, ex.ply)}>
+                  <a href={href('game', ex.gameId, ex.at)}>
                     <b>{moveLabel(ex)}</b>{' '}
                     against {ex.opponent}
                   </a>

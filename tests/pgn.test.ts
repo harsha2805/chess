@@ -63,3 +63,14 @@ describe('time controls', () => {
     expect(timeClassOf(undefined)).toBe('unknown');
   });
 });
+
+describe('games set up from a position', () => {
+  it('number their moves as in that position, Black first when Black is to move', () => {
+    // After 1. e4 e5 2. Nf3 Nc6 3. Bc4: Black to move on move 3.
+    const fen = 'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3';
+    const game = parsePgn(`[SetUp "1"]\n[FEN "${fen}"]\n\n3... Nf6 4. Ng5 d5 *`);
+    expect(game.startFen).toBe(fen);
+    expect(game.moves.map((m) => m.ply)).toEqual([6, 7, 8]);
+    expect(game.moves.map((m) => m.color)).toEqual(['b', 'w', 'b']);
+  });
+});

@@ -24,7 +24,8 @@ export interface MotifStat {
   label: string;
   count: number;
   games: number;
-  examples: { gameId: string; ply: number; san: string; opponent: string }[];
+  /** `ply` labels the move; `at` is its place in the game, for the link to it. */
+  examples: { gameId: string; ply: number; at: number; san: string; opponent: string }[];
 }
 
 export interface OpeningStat {
@@ -256,7 +257,7 @@ export function buildInsights(allGames: GameRecord[], player: string): Insights 
           }
           stat.count++;
           stat.gameIds.add(game.id);
-          stat.examples.push({ gameId: game.id, ply: m.ply, san: m.san, opponent });
+          stat.examples.push({ gameId: game.id, ply: m.ply, at: review.moves.indexOf(m) + 1, san: m.san, opponent });
         }
       }
     }

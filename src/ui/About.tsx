@@ -87,6 +87,21 @@ export function About() {
         setting on your games list.
       </p>
 
+      <h2>Practice from any move</h2>
+      <p>
+        From any move of a game you can play on. <b>Explore</b> lets you move for both sides while Stockfish, at full strength, shows how the
+        position stands and its best lines; <b>Try it</b> next to a better move plays that move for you to start. <b>Play against
+        Stockfish</b> lets you take your side on against the bot, which starts at your rating in that game and can be made 10 points
+        stronger or weaker at a time. Above 1320 Stockfish limits its own strength; below that it looks fewer moves ahead and sometimes
+        picks a lesser move, as players at that level do. Either way the rating is an estimate.
+      </p>
+      <p>
+        Practice never changes the game, its review or your insights. When you leave, you choose: keep an explored line with the game, or
+        save a game against the bot as a game of its own, which you can review like any other. Games against the bot stay out of your games
+        list and insights unless you tick <b>Include my games against the bot</b>. While you practise, the Deep reviews in the background
+        wait, so your practice gets the engine first.
+      </p>
+
       <h2>What it cannot tell you</h2>
       <p>
         The engine looks a fixed number of moves ahead, so a very deep idea can be judged wrongly; the Deep setting looks further and takes

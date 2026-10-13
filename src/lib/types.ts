@@ -34,6 +34,8 @@ export interface EvaluateOptions {
   multipv: number;
   /** Upper bound per position in milliseconds. */
   movetime?: number;
+  /** Hears the lines found so far, each time the search reports a new one (best line first). */
+  onUpdate?: (lines: RawLine[]) => void;
 }
 
 export interface Engine {
@@ -55,7 +57,10 @@ export interface RawLine {
 }
 
 export interface ParsedMove {
-  /** 1-based half-move number. */
+  /**
+   * Half-move number in the game, from 1. It labels the move ("4. e4"). A game set up from a
+   * position starts later than 1, so use the move's index in the list, not this, to look moves up.
+   */
   ply: number;
   color: Color;
   san: string;
@@ -179,7 +184,8 @@ export type Ending =
 
 export interface GameRecord {
   id: string;
-  source: 'chesscom' | 'lichess' | 'pgn' | 'sample';
+  /** 'bot': a game played in the app against Stockfish, kept apart from real games. */
+  source: 'chesscom' | 'lichess' | 'pgn' | 'sample' | 'bot';
   /** "chesscom:name" or "lichess:name" when imported from an account. */
   account?: string;
   url?: string;
@@ -197,6 +203,23 @@ export interface GameRecord {
   plies: number;
   addedAt: number;
   review?: GameReview;
+  /** Lines the person explored from this game and chose to keep. Never part of its review. */
+  practice?: PracticeLine[];
+  /** For a game against the bot: how strong it played, and the game it was played on from. */
+  bot?: { elo: number; from?: { id: string; ply: number } };
+}
+
+/** A line explored from a position of a real game, moving for both sides. */
+export interface PracticeLine {
+  id: string;
+  /** How many moves of the real game come before the line branches off. */
+  fromPly: number;
+  /** The moves explored from there, in SAN. */
+  moves: string[];
+  createdAt: number;
+  updatedAt: number;
+  /** Removed: kept as a marker so the removal reaches the person's other devices. */
+  deleted?: boolean;
 }
 
 export const REVIEW_VERSION = 1;

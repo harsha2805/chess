@@ -50,9 +50,14 @@ export interface BoardProps {
   /** Slides the moved piece (and the rook, when castling) from where it came from. */
   animate?: boolean;
   label: string;
+  /** Makes the squares buttons, for moving pieces by tapping a piece and then a square. */
+  onSquare?: (square: string) => void;
+  /** The piece picked up, and the squares it can go to. */
+  selected?: string;
+  targets?: string[];
 }
 
-export function Board({ fen, orientation, move, mark, arrow, animate, label }: BoardProps) {
+export function Board({ fen, orientation, move, mark, arrow, animate, label, onSquare, selected, targets }: BoardProps) {
   const pieces = placement(fen);
   const ranks = orientation === 'w' ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8];
   const files = orientation === 'w' ? [0, 1, 2, 3, 4, 5, 6, 7] : [7, 6, 5, 4, 3, 2, 1, 0];
@@ -71,16 +76,31 @@ export function Board({ fen, orientation, move, mark, arrow, animate, label }: B
     }
   }
 
+  const interactive = !!onSquare;
   return (
-    <div className="board" role="img" aria-label={label}>
+    <div className={interactive ? 'board interactive' : 'board'} role={interactive ? 'group' : 'img'} aria-label={label}>
       {ranks.map((rank, row) =>
         files.map((file, col) => {
           const square = `${FILES[file]}${rank}`;
           const piece = pieces[square];
           const dark = (file + rank) % 2 === 1;
           const highlighted = move && (move.from === square || move.to === square);
+          const target = targets?.includes(square);
+          const Square = interactive ? 'button' : 'div';
+          const pieceText = piece ? `${piece === piece.toUpperCase() ? 'White' : 'Black'} ${PIECE_ALT[piece.toLowerCase()]}` : 'empty';
           return (
-            <div key={square} className={dark ? 'sq dark' : 'sq'}>
+            <Square
+              key={square}
+              className={`sq${dark ? ' dark' : ''}${selected === square ? ' picked' : ''}${target ? (piece ? ' target capture' : ' target') : ''}`}
+              {...(interactive
+                ? {
+                    type: 'button' as const,
+                    onClick: () => onSquare!(square),
+                    'aria-label': `${square}, ${pieceText}${selected === square ? ', picked up' : ''}${target ? ', can move here' : ''}`,
+                    'aria-pressed': selected === square,
+                  }
+                : {})}
+            >
               {highlighted && <i className="tint" />}
               {col === 0 && <span className="coord rank">{rank}</span>}
               {row === 7 && <span className="coord file">{FILES[file]}</span>}
@@ -99,7 +119,7 @@ export function Board({ fen, orientation, move, mark, arrow, animate, label }: B
                   draggable={false}
                 />
               )}
-            </div>
+            </Square>
           );
         }),
       )}

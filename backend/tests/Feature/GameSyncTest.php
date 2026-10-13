@@ -177,6 +177,12 @@ class GameSyncTest extends TestCase
         $this->push(['upsert' => [$this->game('chesscom:a', ['source' => 'elsewhere'])]])->assertUnprocessable();
     }
 
+    public function test_games_against_the_bot_are_kept_like_any_other(): void
+    {
+        $this->push(['upsert' => [$this->game('bot:abc123', ['source' => 'bot', 'account' => null])]])->assertOk();
+        $this->assertSame('bot', $this->pull()->json('games.0.source'));
+    }
+
     public function test_people_only_see_their_own_games(): void
     {
         $this->push(['upsert' => [$this->game('chesscom:a')]]);
