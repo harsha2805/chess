@@ -49,10 +49,14 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
   });
   const [showBest, setShowBest] = useState(false);
   const [playing, setPlaying] = useState(false);
+  // Only a step of one move forward slides the piece; a jump shows the new position at once.
+  const [slide, setSlide] = useState(false);
   const speed = useStore((s) => s.settings.autoplay);
 
   const setPly = (next: number) => {
-    setPlyRaw(Math.max(0, Math.min(total, next)));
+    const target = Math.max(0, Math.min(total, next));
+    setSlide(target === plyRef.current + 1);
+    setPlyRaw(target);
     setShowBest(false);
   };
   const plyRef = useRef(ply);
@@ -153,7 +157,13 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
         </h1>
         <div className="meta">
           <span>
-            <b>{resultWithEnding(game)}</b> {game.result !== '*' && <span className="num">{resultMark(game.result)}</span>}
+            {game.ending ? (
+              <a className="result-link" href={href('dictionary', 'ending', game.ending)} title="What this ending means">
+                {resultWithEnding(game)}
+              </a>
+            ) : (
+              <b>{resultWithEnding(game)}</b>
+            )} {game.result !== '*' && <span className="num">{resultMark(game.result)}</span>}
           </span>
           {timeLabel(game) && <span>{timeLabel(game)}</span>}
           <span>{gameDateLabel(game)}</span>
@@ -181,6 +191,7 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
               move={move && !viewingBest ? { from: move.from, to: move.to } : undefined}
               mark={!viewingBest ? moveReview?.mark : undefined}
               arrow={viewingBest ? { from: moveReview!.best!.uci.slice(0, 2), to: moveReview!.best!.uci.slice(2, 4) } : undefined}
+              animate={slide && !viewingBest}
               label={boardLabel}
             />
           </div>

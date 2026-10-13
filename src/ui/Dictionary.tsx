@@ -1,9 +1,12 @@
 import { Chess } from 'chess.js';
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
-import { MARK_MEANING, ORIGINS, TERMS, openingFamily } from '../lib/dictionary';
+import { describeMove } from '../lib/describe';
+import { ENDINGS, MARK_MEANING, ORIGINS, TERMS, openingFamily } from '../lib/dictionary';
 import { MARK_LABEL, MARK_ORDER, MARK_SUFFIX } from '../lib/explain';
+import { useStore } from '../lib/store';
 import { Board } from './Board';
 import { fold } from './format';
+import { IconFirst, IconLast, IconNext, IconPause, IconPlay, IconPrev } from './icons';
 import { MarkTag } from './MarkTag';
 import { href } from './router';
 
@@ -89,7 +92,7 @@ export function Dictionary({ kind, id }: { kind?: string; id?: string }) {
   useEffect(() => {
     if (!kind || !id) return;
     let target = '';
-    if (kind === 'mark' || kind === 'term') target = `${kind}-${id}`;
+    if (kind === 'mark' || kind === 'term' || kind === 'ending') target = `${kind}-${id}`;
     else if (kind === 'opening' || kind === 'family') {
       if (!lines) return;
       const fam = openingFamily(id);
@@ -116,6 +119,7 @@ export function Dictionary({ kind, id }: { kind?: string; id?: string }) {
   const qMoves = plainMoves(search);
   const marks = MARK_ORDER.filter((m) => !q || fold(MARK_LABEL[m]).includes(q) || fold(MARK_MEANING[m]).includes(q));
   const terms = TERMS.filter((t) => !q || fold(t.name).includes(q) || fold(t.text).includes(q));
+  const endings = ENDINGS.filter((t) => !q || fold(t.name).includes(q) || fold(t.text).includes(q));
 
   const found = useMemo(() => {
     if (!q) return null;
@@ -165,6 +169,9 @@ export function Dictionary({ kind, id }: { kind?: string; id?: string }) {
           <a href="#dict-terms" onClick={jump('dict-terms')}>
             Words <span className="num">{terms.length}</span>
           </a>
+          <a href="#dict-endings" onClick={jump('dict-endings')}>
+            How games end <span className="num">{endings.length}</span>
+          </a>
           <a href="#dict-openings" onClick={jump('dict-openings')}>
             Openings <span className="num">{found ? found.total.toLocaleString() : lines ? lines.length.toLocaleString() : '…'}</span>
           </a>
@@ -199,6 +206,21 @@ export function Dictionary({ kind, id }: { kind?: string; id?: string }) {
           <dl className="dict-entries">
             {terms.map((t) => (
               <div key={t.id} id={`term-${t.id}`} className={`dict-entry${kind === 'term' && id === t.id ? ' is-target' : ''}`}>
+                <dt>{t.name}</dt>
+                <dd>{t.text}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
+      {endings.length > 0 && (
+        <section id="dict-endings" className="dict-section">
+          <h2>How games end</h2>
+          <p className="hint">The games list and each game say which of these ended the game.</p>
+          <dl className="dict-entries">
+            {endings.map((t) => (
+              <div key={t.id} id={`ending-${t.id}`} className={`dict-entry${kind === 'ending' && id === t.id ? ' is-target' : ''}`}>
                 <dt>{t.name}</dt>
                 <dd>{t.text}</dd>
               </div>
@@ -304,52 +326,208 @@ function jump(target: string) {
   };
 }
 
+interface Step {
+  fen: string;
+  from: string;
+  to: string;
+  san: string;
+  /** The move in plain words. */
+  text: string;
+}
+
+/** Seconds each move stays up while a line plays itself. */
+const PLAY_EVERY = 1.1;
+
+/** One opening line on a board: step or play through it, with each move in plain words. */
 function LineViewer({ line }: { line: Line | null }) {
-  const positions = useMemo(() => {
+  const steps = useMemo(() => {
     const chess = new Chess();
-    const out = [{ fen: chess.fen(), from: '', to: '', san: '' }];
+    const out: Step[] = [{ fen: chess.fen(), from: '', to: '', san: '', text: '' }];
     if (!line) return out;
     for (const san of sans(line[2])) {
       try {
         const m = chess.move(san);
-        out.push({ fen: chess.fen(), from: m.from, to: m.to, san: m.san });
+        out.push({ fen: chess.fen(), from: m.from, to: m.to, san: m.san, text: describeMove(m) });
       } catch {
         break;
       }
     }
     return out;
   }, [line]);
-  const [ply, setPly] = useState(positions.length - 1);
-  useEffect(() => setPly(positions.length - 1), [positions]);
-  const at = positions[Math.min(ply, positions.length - 1)];
+  const last = steps.length - 1;
+  const [ply, setPlyRaw] = useState(last);
+  const [animate, setAnimate] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const plyRef = useRef(ply);
+  plyRef.current = ply;
+  const list = useRef<HTMLOListElement>(null);
+
+  // A new line opens on its final position, so its shape shows at once.
+  useEffect(() => {
+    setPlyRaw(last);
+    setAnimate(false);
+    setPlaying(false);
+  }, [steps, last]);
+
+  /** Moving one move forward slides the piece; any other jump shows the position at once. */
+  const go = (next: number) => {
+    const target = Math.max(0, Math.min(last, next));
+    setAnimate(target === plyRef.current + 1);
+    setPlyRaw(target);
+  };
+  const goRef = useRef(go);
+  goRef.current = go;
+
+  const togglePlay = () => {
+    if (playing) return setPlaying(false);
+    // Playing from the end starts the line over.
+    if (plyRef.current >= last) {
+      setAnimate(false);
+      setPlyRaw(0);
+    }
+    setPlaying(true);
+  };
+
+  useEffect(() => {
+    if (!playing) return;
+    if (ply >= last) {
+      setPlaying(false);
+      return;
+    }
+    const timer = setTimeout(() => goRef.current(ply + 1), PLAY_EVERY * 1000);
+    return () => clearTimeout(timer);
+  }, [playing, ply, last]);
+
+  // The arrow keys step through the line, unless the search box has the keys.
+  useEffect(() => {
+    if (!line) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const current = plyRef.current;
+      if (e.key === 'ArrowLeft') goRef.current(current - 1);
+      else if (e.key === 'ArrowRight') goRef.current(current + 1);
+      else if (e.key === 'Home') goRef.current(0);
+      else if (e.key === 'End') goRef.current(Infinity);
+      else return;
+      e.preventDefault();
+      setPlaying(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [line]);
+
+  // Keeps the current move in view inside the list, without moving the page.
+  useEffect(() => {
+    const box = list.current;
+    const row = box?.children[ply - 1] as HTMLElement | undefined;
+    if (!box || !row) return;
+    if (row.offsetTop < box.scrollTop || row.offsetTop + row.offsetHeight > box.scrollTop + box.clientHeight) {
+      box.scrollTop = row.offsetTop - box.clientHeight / 3;
+    }
+  }, [ply]);
+
+  const games = useStore((s) => s.games);
+  const family = line ? openingFamily(line[1]) : '';
+  const reached = useMemo(() => {
+    if (!line) return { line: 0, family: 0 };
+    let exact = 0;
+    let inFamily = 0;
+    for (const g of games) {
+      const name = g.review?.opening?.name;
+      if (!name) continue;
+      if (name === line[1]) exact++;
+      if (openingFamily(name) === family) inFamily++;
+    }
+    return { line: exact, family: inFamily };
+  }, [games, line, family]);
+
+  const at = steps[Math.min(ply, last)];
+  const moveNo = (i: number) => (i % 2 === 1 ? `${(i + 1) / 2}.` : `${i / 2}…`);
 
   return (
     <>
+      {line && (
+        <header className="dict-viewer-head">
+          <p className="dict-family-tag">
+            <a href={href('dictionary', 'family', family)}>{family}</a>
+            <a className="num" href={href('dictionary', 'term', 'eco')} title="What the ECO code means">
+              ECO {line[0]}
+            </a>
+          </p>
+          <h3>{line[1] === family ? `${family}, main line` : variation(line, family)}</h3>
+          <p className="muted">
+            {Math.ceil(last / 2)} {last <= 2 ? 'move' : 'moves'}, then {last % 2 === 0 ? 'White' : 'Black'} to move.
+            {reached.line > 0
+              ? ` You reached this line in ${reached.line} ${reached.line === 1 ? 'game' : 'games'}.`
+              : reached.family > 0
+                ? ` ${reached.family} of your games ${reached.family === 1 ? 'was a' : 'were'} ${family}.`
+                : ''}
+          </p>
+        </header>
+      )}
       <Board
         fen={at.fen}
         orientation="w"
         move={at.from ? { from: at.from, to: at.to } : undefined}
+        animate={animate}
         label={line ? `${line[1]}, after ${ply === 0 ? 'no moves' : at.san}.` : 'The starting position.'}
       />
       {line ? (
         <div className="dict-viewer-text">
-          <h3>{line[1]}</h3>
-          <p className="muted">
-            {`ECO ${line[0]}, ${Math.ceil((positions.length - 1) / 2)} ${positions.length <= 3 ? 'move' : 'moves'}`}
+          <div className="dict-controls">
+            <button className="icon-btn" type="button" onClick={() => go(0)} disabled={ply === 0} aria-label="Starting position" title="Start (Home)">
+              <IconFirst />
+            </button>
+            <button className="icon-btn" type="button" onClick={() => go(ply - 1)} disabled={ply === 0} aria-label="Previous move" title="Previous (left arrow)">
+              <IconPrev />
+            </button>
+            <button
+              className="icon-btn play"
+              type="button"
+              onClick={togglePlay}
+              aria-pressed={playing}
+              aria-label={playing ? 'Pause' : 'Play the moves'}
+              title={playing ? 'Pause' : 'Play the moves'}
+            >
+              {playing ? <IconPause /> : <IconPlay />}
+            </button>
+            <button className="icon-btn" type="button" onClick={() => go(ply + 1)} disabled={ply === last} aria-label="Next move" title="Next (right arrow)">
+              <IconNext />
+            </button>
+            <button className="icon-btn" type="button" onClick={() => go(last)} disabled={ply === last} aria-label="Final position" title="End (End)">
+              <IconLast />
+            </button>
+          </div>
+          <p className="dict-now" aria-live="polite">
+            {ply === 0 ? (
+              'The starting position. Play the moves, or step through them one at a time.'
+            ) : (
+              <>
+                <b className="num">
+                  {moveNo(ply)} {at.san}
+                </b>{' '}
+                {at.text}
+              </>
+            )}
           </p>
-          <ol className="dict-moves" aria-label="Moves, pick one to see the position">
-            {positions.slice(1).map((p, i) => (
+
+          <ol className="dict-steps" ref={list} aria-label="The moves in words, pick one to see the position">
+            {steps.slice(1).map((p, i) => (
               <li key={i}>
-                {i % 2 === 0 && <span className="muted num">{i / 2 + 1}.</span>}
-                <button type="button" aria-pressed={ply === i + 1} onClick={() => setPly(i + 1)}>
-                  {p.san}
+                <button type="button" aria-pressed={ply === i + 1} onClick={() => go(i + 1)}>
+                  <span className="num step-no">{moveNo(i + 1)}</span>
+                  <span className="step-san">{p.san}</span>
+                  <span className="step-text">{p.text}</span>
                 </button>
               </li>
             ))}
           </ol>
+          {ORIGINS[family] && <p className="dict-viewer-origin">{ORIGINS[family]}</p>}
         </div>
       ) : (
-        <p className="muted dict-viewer-text">Pick a line to see it on the board.</p>
+        <p className="muted dict-viewer-text">Pick a line to see it on the board, play through its moves, and read each one in plain words.</p>
       )}
     </>
   );

@@ -1,4 +1,4 @@
-import type { Mark } from './types';
+import type { Ending, Mark } from './types';
 
 /** What earns each mark. The thresholds are points of winning chances, out of 100. */
 export const MARK_MEANING: Record<Mark, string> = {
@@ -112,6 +112,63 @@ export const TERMS: Term[] = [
     id: 'engine',
     name: 'Engine and depth',
     text: 'Stockfish, the chess program that does the review, looks a number of moves ahead from every position. Quick, Standard and Deep reviews let it look further each time, which finds more but takes longer.',
+  },
+];
+
+/**
+ * How a game can end, as the games list and each game say it. Listed in the order they are
+ * most often met: most games end in a resignation or a checkmate.
+ */
+export const ENDINGS: { id: Ending; name: string; text: string }[] = [
+  {
+    id: 'resignation',
+    name: 'Resignation',
+    text: 'A player gives up, usually because the position is lost and playing on would only delay the end. Most games between experienced players end this way, long before checkmate. Resigning counts as a loss, exactly like being checkmated.',
+  },
+  {
+    id: 'checkmate',
+    name: 'Checkmate',
+    text: 'The king is attacked and there is no way to get it out of danger, so the game ends at once. The mating move is written with a #, as in Qh4#.',
+  },
+  {
+    id: 'time',
+    name: 'On time',
+    text: 'A player’s clock reached zero, so they lose, however good their position was. The one exception is when the opponent has too little left to ever give checkmate: then it is a draw, called timeout vs insufficient material.',
+  },
+  {
+    id: 'abandoned',
+    name: 'Abandoned (AFK)',
+    text: 'A player left the game: they closed it, lost the connection or stopped moving, often called going AFK, away from keyboard. On chess.com they lose if they do not come back in time; on Lichess the opponent can claim the win once a countdown runs out. Either way it counts as a loss for the player who left.',
+  },
+  {
+    id: 'time-insufficient',
+    name: 'Timeout vs insufficient material',
+    text: 'One player ran out of time, but the other could never have forced checkmate with what they had left, such as a bare king, or a king and a single knight or bishop. Since no sequence of moves would have let them win, the game is a draw instead of a loss on time.',
+  },
+  {
+    id: 'agreement',
+    name: 'Draw by agreement',
+    text: 'One player offered a draw and the other accepted. It usually happens in level positions where neither side can make progress.',
+  },
+  {
+    id: 'repetition',
+    name: 'Draw by repetition',
+    text: 'The same position, with the same player to move and the same castling and en passant rights, came up three times. The game is then a draw; online it ends on its own. Repeating moves on purpose is a common way to hold a worse position.',
+  },
+  {
+    id: 'stalemate',
+    name: 'Stalemate',
+    text: 'The player to move has no legal move, but their king is not in check. It is a draw, not a win, which is why a side that is far ahead must be careful in the endgame, and a side that is far behind can sometimes save the game.',
+  },
+  {
+    id: 'insufficient',
+    name: 'Insufficient material',
+    text: 'Neither side has enough left to give checkmate in any way: king against king, a king and one bishop or one knight against a king, or kings with bishops all on squares of the same colour. The game is drawn at once.',
+  },
+  {
+    id: 'fifty',
+    name: '50-move rule',
+    text: 'Fifty moves by each side went by without a capture or a pawn move. The game is then a draw, so a side that cannot make progress does not have to play on forever.',
   },
 ];
 

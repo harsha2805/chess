@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { whiteWin } from '../lib/score';
 import type { Color, Mark, Score } from '../lib/types';
 import { MarkTag } from './MarkTag';
@@ -46,15 +47,29 @@ export interface BoardProps {
   mark?: Mark;
   /** A suggested move, drawn as an arrow. */
   arrow?: { from: string; to: string };
+  /** Slides the moved piece (and the rook, when castling) from where it came from. */
+  animate?: boolean;
   label: string;
 }
 
-export function Board({ fen, orientation, move, mark, arrow, label }: BoardProps) {
+export function Board({ fen, orientation, move, mark, arrow, animate, label }: BoardProps) {
   const pieces = placement(fen);
   const ranks = orientation === 'w' ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8];
   const files = orientation === 'w' ? [0, 1, 2, 3, 4, 5, 6, 7] : [7, 6, 5, 4, 3, 2, 1, 0];
   const colOf = (square: string) => files.indexOf(FILES.indexOf(square[0]));
   const rowOf = (square: string) => ranks.indexOf(Number(square[1]));
+
+  // Pieces arriving by this move, with where each came from: the piece moved, and the rook when castling.
+  const arriving = new Map<string, string>();
+  if (animate && move && pieces[move.to]) {
+    arriving.set(move.to, move.from);
+    const fileStep = FILES.indexOf(move.to[0]) - FILES.indexOf(move.from[0]);
+    if (pieces[move.to].toLowerCase() === 'k' && Math.abs(fileStep) === 2) {
+      const rank = move.to[1];
+      if (fileStep > 0) arriving.set(`f${rank}`, `h${rank}`);
+      else arriving.set(`d${rank}`, `a${rank}`);
+    }
+  }
 
   return (
     <div className="board" role="img" aria-label={label}>
@@ -69,7 +84,21 @@ export function Board({ fen, orientation, move, mark, arrow, label }: BoardProps
               {highlighted && <i className="tint" />}
               {col === 0 && <span className="coord rank">{rank}</span>}
               {row === 7 && <span className="coord file">{FILES[file]}</span>}
-              {piece && <img src={PIECES[piece]} alt={`${piece === piece.toUpperCase() ? 'White' : 'Black'} ${PIECE_ALT[piece.toLowerCase()]} on ${square}`} draggable={false} />}
+              {piece && (
+                <img
+                  // A new key on each move restarts the slide.
+                  key={arriving.has(square) ? fen : 'still'}
+                  className={arriving.has(square) ? 'slide' : undefined}
+                  style={
+                    arriving.has(square)
+                      ? ({ '--dx': colOf(arriving.get(square)!) - col, '--dy': rowOf(arriving.get(square)!) - row } as CSSProperties)
+                      : undefined
+                  }
+                  src={PIECES[piece]}
+                  alt={`${piece === piece.toUpperCase() ? 'White' : 'Black'} ${PIECE_ALT[piece.toLowerCase()]} on ${square}`}
+                  draggable={false}
+                />
+              )}
             </div>
           );
         }),

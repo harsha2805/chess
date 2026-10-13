@@ -724,6 +724,22 @@ textarea {
   height: 92%;
   pointer-events: none;
 }
+/* A piece arriving: it slides in from its square. The image is 92% of a square, so a
+   square is 100% / 0.92 of it. */
+.sq img.slide {
+  z-index: 3;
+  animation: piece-slide 0.24s var(--ease) both;
+}
+@keyframes piece-slide {
+  from {
+    transform: translate(calc(var(--dx) * 108.7%), calc(var(--dy) * 108.7%));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sq img.slide {
+    animation: none;
+  }
+}
 .board-overlay {
   position: absolute;
   inset: 0;
@@ -853,6 +869,13 @@ textarea {
 }
 .review-head .meta a:hover {
   color: var(--ink);
+}
+.review-head .meta a.result-link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--ink-3);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 .review-head .meta svg {
   width: 15px;
@@ -2906,35 +2929,115 @@ a.note-eval {
 .dict-viewer .muted {
   color: var(--sign-ink-2);
 }
-.dict-moves {
+.dict-controls {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px 4px;
-  margin: 10px 0 0;
-  padding: 0;
-  list-style: none;
+  justify-content: center;
+  gap: 6px;
 }
-.dict-moves li {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 2px;
-}
-.dict-moves button {
-  min-height: 32px;
-  padding: 4px 7px 2px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--sign-ink);
-  font-weight: 700;
-  cursor: pointer;
-}
-.dict-moves button:hover {
+.dict-controls .icon-btn {
+  width: 48px;
+  height: 40px;
+  border-color: var(--sign-line);
   background: var(--sign-2);
+  color: var(--sign-ink);
 }
-.dict-moves button[aria-pressed='true'] {
+.dict-controls .icon-btn:hover:not([disabled]) {
+  background: var(--sign);
+  border-color: var(--sign-ink-2);
+}
+.dict-controls .icon-btn.play {
+  border-color: var(--sign-ink);
   background: var(--sign-ink);
   color: var(--sign);
+}
+.dict-controls .icon-btn.play:hover:not([disabled]) {
+  border-color: var(--sign-ink-2);
+  background: var(--sign-ink-2);
+}
+.dict-now {
+  min-height: 4.65em;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--sign-2);
+  line-height: 1.55;
+}
+.dict-now b {
+  margin-right: 2px;
+  font-weight: 900;
+}
+.dict-viewer-head {
+  margin: 2px 2px 12px;
+}
+.dict-family-tag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0 0 2px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.dict-family-tag a {
+  color: var(--sign-ink-2);
+  text-decoration: none;
+}
+.dict-family-tag a:hover {
+  color: var(--sign-ink);
+  text-decoration: underline;
+}
+.dict-steps {
+  position: relative;
+  max-height: 248px;
+  overflow-y: auto;
+  margin: 12px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--sign-line);
+  list-style: none;
+  overscroll-behavior: contain;
+}
+.dict-steps li {
+  border-bottom: 1px solid var(--sign-line);
+}
+.dict-steps button {
+  display: grid;
+  grid-template-columns: 2.4em 3.6em minmax(0, 1fr);
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 6px;
+  border: 0;
+  background: none;
+  color: var(--sign-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.dict-steps button:hover {
+  background: var(--sign-2);
+}
+.dict-steps button[aria-pressed='true'] {
+  background: var(--sign-ink);
+  color: var(--sign);
+}
+.dict-steps .step-no {
+  color: inherit;
+  opacity: 0.7;
+  font-size: 0.875rem;
+}
+.dict-steps .step-san {
+  font-weight: 900;
+}
+.dict-steps .step-text {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.dict-viewer-origin {
+  margin: 14px 0 0;
+  color: var(--sign-ink-2);
+  font-size: 0.875rem;
+  line-height: 1.55;
 }
 .dict-family {
   border-bottom: 1px solid var(--ground-3);
@@ -3041,6 +3144,9 @@ a.note-eval {
     grid-row: 1;
     position: sticky;
     top: calc(var(--bar-h) + 16px);
+    /* On a short screen the viewer scrolls on its own, so nothing in it is out of reach. */
+    max-height: calc(100dvh - var(--bar-h) - 32px);
+    overflow-y: auto;
   }
   .dict-families {
     grid-column: 1;
