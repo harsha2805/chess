@@ -66,6 +66,52 @@ class GameSyncTest extends TestCase
         $this->assertSame('{"v":"newer"}', $this->pull()->json('games.0.review'));
     }
 
+    private static function review(int $depth, int $at, array $extra = []): string
+    {
+        return json_encode($extra + ['version' => 1, 'depth' => $depth, 'analyzedAt' => $at]);
+    }
+
+    public function test_a_deeper_review_is_never_replaced_by_a_lighter_one_made_later(): void
+    {
+        $deep = self::review(16, 100);
+        $this->push(['upsert' => [$this->game('chesscom:a', ['review' => $deep, 'reviewAt' => 100])]]);
+        $this->push(['upsert' => [$this->game('chesscom:a', ['review' => self::review(12, 200), 'reviewAt' => 200])]]);
+        $this->assertSame($deep, $this->pull()->json('games.0.review'));
+
+        // Reaching the depth asked for beats a review the time limit cut short.
+        $cut = self::review(16, 300, ['reached' => 15.4, 'capped' => 6]);
+        $this->push(['upsert' => [$this->game('chesscom:a', ['review' => $cut, 'reviewAt' => 300])]]);
+        $this->assertSame($deep, $this->pull()->json('games.0.review'));
+
+        // A newer review format wins over depth: the old one is no longer shown.
+        $next = self::review(12, 400, ['version' => 2]);
+        $this->push(['upsert' => [$this->game('chesscom:a', ['review' => $next, 'reviewAt' => 400])]]);
+        $this->assertSame($next, $this->pull()->json('games.0.review'));
+    }
+
+    public function test_an_equal_review_does_not_replace_the_stored_one(): void
+    {
+        $first = self::review(16, 100, ['engine' => 'one']);
+        $this->push(['upsert' => [$this->game('chesscom:a', ['review' => $first, 'reviewAt' => 100])]]);
+        $this->push(['upsert' => [$this->game('chesscom:a', ['review' => self::review(16, 100, ['engine' => 'two']), 'reviewAt' => 100])]]);
+        $this->assertSame($first, $this->pull()->json('games.0.review'));
+    }
+
+    public function test_a_browser_whose_review_was_refused_pulls_the_stronger_one(): void
+    {
+        $deep = self::review(16, 100);
+        $this->push(['device' => 'bbbbbbbbbbbbbbbb', 'upsert' => [$this->game('chesscom:a', ['review' => $deep, 'reviewAt' => 100])]]);
+        $this->push(['device' => 'aaaaaaaaaaaaaaaa', 'upsert' => [$this->game('chesscom:a', ['review' => self::review(12, 200), 'reviewAt' => 200])]]);
+
+        $row = $this->pull(['device' => 'aaaaaaaaaaaaaaaa'])->json('games.0');
+        $this->assertArrayNotHasKey('same', $row);
+        $this->assertSame($deep, $row['review']);
+
+        // Sending the stored review again is not a refusal: the browser already has it.
+        $this->push(['device' => 'aaaaaaaaaaaaaaaa', 'upsert' => [$this->game('chesscom:a', ['review' => $deep, 'reviewAt' => 100])]]);
+        $this->assertTrue($this->pull(['device' => 'aaaaaaaaaaaaaaaa'])->json('games.0.same'));
+    }
+
     public function test_changes_are_paged_by_cursor(): void
     {
         $games = array_map(fn ($i) => $this->game("pgn:{$i}", ['source' => 'pgn', 'account' => null]), range(1, 50));

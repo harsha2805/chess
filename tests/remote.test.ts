@@ -5,11 +5,12 @@ import { REVIEW_VERSION, type GameRecord, type GameReview } from '../src/lib/typ
 
 const pgn = `[Event "Live Chess"]\n[White "me"]\n[Black "them"]\n[Result "0-1"]\n[TimeControl "600"]\n\n1. f3 {[%clk 0:09:58]} 1... e5 {[%clk 0:09:57]} 2. g4 {[%clk 0:09:50]} 2... Qh4# {[%clk 0:09:55]} 0-1`;
 
-const review = (analyzedAt: number): GameReview => ({
+const review = (analyzedAt: number, extra: Partial<GameReview> = {}): GameReview => ({
   version: REVIEW_VERSION,
   engine: 'test',
   depth: 12,
   analyzedAt,
+  ...extra,
   startEval: { cp: 20 },
   moves: [],
   accuracy: { w: 50, b: 90 },
@@ -65,6 +66,37 @@ describe('pulling games', () => {
   it('takes a newer review from the account', () => {
     const merge = mergeRemote(row(local({ review: review(300) })), local({ review: review(200) }));
     expect(merge.kind === 'put' && merge.record.review!.analyzedAt).toBe(300);
+    expect(merge.kind === 'put' && merge.pushBack).toBe(false);
+  });
+
+  it('keeps a deeper review over a lighter one made later, wherever each was made', () => {
+    const deepHere = mergeRemote(row(local({ review: review(300) })), local({ review: review(100, { depth: 16 }) }));
+    expect(deepHere.kind === 'put' && deepHere.record.review!.depth).toBe(16);
+    expect(deepHere.kind === 'put' && deepHere.pushBack).toBe(true);
+
+    const deepThere = mergeRemote(row(local({ review: review(100, { depth: 16 }) })), local({ review: review(300) }));
+    expect(deepThere.kind === 'put' && deepThere.record.review!.depth).toBe(16);
+    expect(deepThere.kind === 'put' && deepThere.pushBack).toBe(false);
+  });
+
+  it('prefers a review that reached its depth over one the time limit cut short', () => {
+    const cut = review(300, { depth: 16, reached: 15.2, capped: 9 });
+    const full = review(100, { depth: 16, reached: 16, capped: 0 });
+    const merge = mergeRemote(row(local({ review: cut })), local({ review: full }));
+    expect(merge.kind === 'put' && merge.record.review).toEqual(full);
+    expect(merge.kind === 'put' && merge.pushBack).toBe(true);
+  });
+
+  it('ranks a newer review format above a deeper review', () => {
+    const merge = mergeRemote(row(local({ review: review(100, { version: REVIEW_VERSION + 1 }) })), local({ review: review(300, { depth: 16 }) }));
+    expect(merge.kind === 'put' && merge.record.review!.version).toBe(REVIEW_VERSION + 1);
+    expect(merge.kind === 'put' && merge.pushBack).toBe(false);
+  });
+
+  it('keeps its own copy of an equal review and sends nothing back', () => {
+    const mine = review(200, { engine: 'here' });
+    const merge = mergeRemote(row(local({ review: review(200, { engine: 'there' }) })), local({ review: mine }));
+    expect(merge.kind === 'put' && merge.record.review).toBe(mine);
     expect(merge.kind === 'put' && merge.pushBack).toBe(false);
   });
 

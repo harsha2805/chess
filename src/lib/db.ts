@@ -41,6 +41,17 @@ export async function loadGames(): Promise<GameRecord[]> {
   }
 }
 
+/** One stored game as saved now, which another tab may have changed since this one loaded it. */
+export async function loadGame(id: string): Promise<GameRecord | undefined> {
+  const db = await open();
+  if (!db) return memory.get(id);
+  try {
+    return (await db.get(STORE, id)) as GameRecord | undefined;
+  } catch {
+    return memory.get(id);
+  }
+}
+
 export async function saveGames(records: GameRecord[]): Promise<void> {
   for (const r of records) memory.set(r.id, r);
   const db = await open();

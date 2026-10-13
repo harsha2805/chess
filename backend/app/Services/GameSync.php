@@ -17,14 +17,35 @@ class GameSync
 {
     public const PAGE = 50;
 
+    /** How long a claim on a game lasts unless renewed. Hidden tabs renew about once a minute. */
+    public const CLAIM_MS = 180_000;
+
     public static function nowMs(): int
     {
         return (int) floor(microtime(true) * 1000);
     }
 
     /**
-     * Stores games sent by a browser. The record is replaced; the review is kept unless the
-     * one sent is at least as new, so a slow browser cannot overwrite a newer review.
+     * How strong a review is, compared element by element as the app does (reviewRank in
+     * src/lib/types.ts): the review format, the depth asked for, the depth reached, then the
+     * time it was made. Reviews that predate a field count it as 0.
+     *
+     * @return array{int, int, float, int}
+     */
+    public static function rank(?string $review, ?int $ms): array
+    {
+        $r = $review === null ? null : json_decode($review, true);
+        if (! is_array($r)) {
+            return [0, 0, 0.0, $ms ?? 0];
+        }
+        $depth = (int) ($r['depth'] ?? 0);
+
+        return [(int) ($r['version'] ?? 0), $depth, (float) ($r['reached'] ?? $depth), $ms ?? (int) ($r['analyzedAt'] ?? 0)];
+    }
+
+    /**
+     * Stores games sent by a browser. The record is replaced; the review only when the one sent
+     * is stronger (see rank), so a lighter review made later never replaces a deeper one.
      *
      * @param  list<array{id: string, source: string, account?: ?string, playedAt: int, addedAt: int, record: string, review?: ?string, reviewAt?: ?int}>  $items
      */
@@ -52,9 +73,21 @@ class GameSync
                     'origin' => $device,
                 ]);
                 $reviewAt = $item['reviewAt'] ?? null;
-                if (! empty($item['review']) && $reviewAt !== null && ($game->review_ms === null || $reviewAt >= $game->review_ms)) {
-                    $game->review = $item['review'];
-                    $game->review_ms = $reviewAt;
+                if (! empty($item['review']) && $reviewAt !== null) {
+                    if ($game->review === null || self::rank($item['review'], $reviewAt) > self::rank($game->review, $game->review_ms)) {
+                        $game->review = $item['review'];
+                        $game->review_ms = $reviewAt;
+                        // The browser that claimed the game has sent its new review: the claim is done.
+                        if ($device !== null && $game->claim_device === $device) {
+                            $game->claim_device = null;
+                            $game->claim_until_ms = null;
+                            $game->claim_progress = null;
+                        }
+                    } elseif ($item['review'] !== $game->review) {
+                        // The stored review is stronger and stays. The browser that sent the
+                        // weaker one must pull the game in full, so it is not told "same".
+                        $game->origin = null;
+                    }
                 }
                 $game->save();
                 $existing->put($item['id'], $game);
@@ -77,7 +110,10 @@ class GameSync
 
         return DB::transaction(function () use ($user, $ids, $device) {
             $now = self::nowMs();
-            $empty = ['record' => null, 'raw' => null, 'review' => null, 'review_ms' => null, 'deleted' => true, 'updated_ms' => $now, 'origin' => $device];
+            $empty = [
+                'record' => null, 'raw' => null, 'review' => null, 'review_ms' => null, 'deleted' => true, 'updated_ms' => $now, 'origin' => $device,
+                'claim_device' => null, 'claim_until_ms' => null, 'claim_progress' => null,
+            ];
             $found = $user->games()->whereIn('game_id', $ids)->pluck('game_id')->all();
             $user->games()->whereIn('game_id', $found)->update($empty);
             foreach (array_diff($ids, $found) as $id) {
@@ -115,6 +151,44 @@ class GameSync
             'more' => $more,
             'cursor' => $last ? ['ms' => $last->updated_ms, 'id' => $last->id] : ['ms' => $sinceMs, 'id' => $afterId],
         ];
+    }
+
+    /**
+     * Lets one browser at a time give a game a Deep review in the background. A claim lasts
+     * CLAIM_MS unless renewed, so a laptop closed halfway frees the game for the others. Claims
+     * never change `updated_ms`, so renewing one does not send the game to every device again.
+     *
+     * `claim` and `renew` take the game when it is free, expired or already this browser's;
+     * otherwise they report how far the browser holding it has got. `release` gives it up.
+     * Null when the person has no such game.
+     *
+     * @return array{granted: bool, progress: ?int}|null
+     */
+    public function claim(User $user, string $gameId, string $device, string $action, int $progress): ?array
+    {
+        return DB::transaction(function () use ($user, $gameId, $device, $action, $progress) {
+            /** @var Game|null $game */
+            $game = $user->games()->where('game_id', $gameId)->where('deleted', false)->lockForUpdate()->first();
+            if ($game === null) {
+                return null;
+            }
+            $now = self::nowMs();
+            $mine = $game->claim_device === $device;
+            if ($action === 'release') {
+                if ($mine) {
+                    $game->update(['claim_device' => null, 'claim_until_ms' => null, 'claim_progress' => null]);
+                }
+
+                return ['granted' => true, 'progress' => null];
+            }
+            $free = $game->claim_device === null || ($game->claim_until_ms ?? 0) <= $now;
+            if (! $mine && ! $free) {
+                return ['granted' => false, 'progress' => $game->claim_progress];
+            }
+            $game->update(['claim_device' => $device, 'claim_until_ms' => $now + self::CLAIM_MS, 'claim_progress' => $progress]);
+
+            return ['granted' => true, 'progress' => $progress];
+        });
     }
 
     /**

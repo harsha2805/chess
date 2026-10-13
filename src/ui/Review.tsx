@@ -3,7 +3,7 @@ import { MARK_LABEL, MARK_ORDER, MARK_SUFFIX, NOTABLE_MARKS, PHASE_LABEL, clockT
 import { resolvePlayer } from '../lib/insights';
 import { parsePgn } from '../lib/pgn';
 import { formatScore } from '../lib/score';
-import { AUTOPLAY_SPEEDS, DEPTHS, canDeepen, getState, isReviewed, requestReview, resetEngine, reviewSetting, updateSettings, useStore } from '../lib/store';
+import { AUTOPLAY_SPEEDS, getState, isDeep, isReviewed, requestReview, resetEngine, reviewSetting, reviewShortfall, updateSettings, useStore } from '../lib/store';
 import type { Color, GameRecord, GameReview, Mark, MoveReview, ParsedGame } from '../lib/types';
 import { Board, EvalBar } from './Board';
 import { EvalGraph } from './EvalGraph';
@@ -285,26 +285,49 @@ function PlayerBar({ game, color, clock, accuracy }: { game: GameRecord; color: 
   );
 }
 
-/** Which setting made the review, with a way to redo it when the chosen setting looks further. */
+/**
+ * Which setting made the review, and whether the time limit cut it short. Below Deep, a way to
+ * give this game a Deep review now, or how far the background review of it has got.
+ */
 function ReviewSetting({ game, review }: { game: GameRecord; review: GameReview }) {
-  const preset = useStore((s) => s.settings.depth);
   const slow = useStore((s) => s.slowEngine);
   const active = useStore((s) => s.active.find((a) => a.id === game.id) ?? null);
   const queued = useStore((s) => s.queue.includes(game.id));
+  const background = useStore((s) => (s.deepening?.id === game.id ? s.deepening : null));
+  const elsewhere = useStore((s) => s.elsewhere[game.id]);
+  const notice = useStore((s) => s.notices[game.id]);
+  const deepenIdle = useStore((s) => s.settings.deepenIdle);
+  const shortfall = reviewShortfall(review);
+  const belowDeep = !slow && !isDeep(review);
+  const deepNow = () => requestReview([game.id], { first: true, again: true, target: 'deep' });
 
   if (active) return <span className="num">Reviewing again: {Math.round((active.done / active.total) * 100)}%</span>;
   if (queued) return <span>{reviewSetting(review)}, queued to be reviewed again</span>;
   return (
     <span>
       {reviewSetting(review)}
-      {!slow && canDeepen(game, preset) && (
+      {shortfall && <span title={shortfall}>, cut short by the time limit</span>}
+      {background ? (
         <>
           {' · '}
-          <button className="linklike" type="button" onClick={() => requestReview([game.id], { first: true, again: true })}>
-            Review again with {DEPTHS[preset].label}
+          <span className="num">Deep review in the background: {Math.round((background.done / background.total) * 100)}%</span>{' '}
+          <button className="linklike" type="button" onClick={deepNow}>
+            Finish it now
           </button>
         </>
+      ) : (
+        belowDeep && (
+          <>
+            {' · '}
+            {elsewhere !== undefined && <>Your other device is giving it a Deep review ({elsewhere}% when last heard). </>}
+            <button className="linklike" type="button" onClick={deepNow} title="The most accurate verdict on this game. About a minute on a laptop.">
+              Deep review this game now
+            </button>
+            {deepenIdle && elsewhere === undefined && <> or leave it to the background</>}
+          </>
+        )
       )}
+      {notice && <> · {notice}</>}
     </span>
   );
 }

@@ -1546,6 +1546,19 @@ a.note-eval {
   color: var(--ink-2);
   font-weight: 700;
 }
+.depth-note.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+.depth-note.check input {
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--focus);
+  flex: none;
+}
 .list-tools {
   display: flex;
   flex-wrap: wrap;

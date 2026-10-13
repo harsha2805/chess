@@ -1,7 +1,24 @@
 import { memo, useMemo, useState } from 'react';
 import { FETCH_EVERY_HOURS } from '../config';
 import { checkForGames, useAccount } from '../lib/account';
-import { DEPTHS, canDeepen, cancelReviews, isReviewed, removeGames, requestReview, resetEngine, reviewSetting, updateSettings, useStore, type DepthPreset, type GameSort, type Progress } from '../lib/store';
+import {
+  DEPTHS,
+  canDeepen,
+  cancelReviews,
+  deepenRemaining,
+  isReviewed,
+  pauseDeepening,
+  removeGames,
+  requestReview,
+  resetEngine,
+  resumeDeepening,
+  reviewSetting,
+  updateSettings,
+  useStore,
+  type DepthPreset,
+  type GameSort,
+  type Progress,
+} from '../lib/store';
 import type { GameRecord, TimeClass } from '../lib/types';
 import { ImportForm } from './ImportForm';
 import { OUTCOME_LABEL, TIME_CLASS_LABEL, agoLabel, fold, gameDateLabel, perspective, resultMark, timeLabel } from './format';
@@ -68,6 +85,8 @@ function Library({ games }: { games: GameRecord[] }) {
   const failures = useStore((s) => s.failures);
   const settings = useStore((s) => s.settings);
   const slow = useStore((s) => s.slowEngine);
+  const deepening = useStore((s) => s.deepening);
+  const deepenPaused = useStore((s) => s.deepenPaused);
   const accountStatus = useAccount((s) => s.status);
   const linked = useAccount((s) => s.accounts);
   const checking = useAccount((s) => s.checking);
@@ -117,6 +136,10 @@ function Library({ games }: { games: GameRecord[] }) {
   // The backup engine cannot look further than it already did, so it offers nothing to redo.
   const lighter = useMemo(() => (slow ? [] : games.filter((g) => canDeepen(g, settings.depth))), [games, slow, settings.depth]);
   const queued = useMemo(() => new Set(queue), [queue]);
+  // Background Deep reviews: what is left, and the game under way.
+  const deepenIdle = settings.deepenIdle && !slow;
+  const toDeepen = useMemo(() => (deepenIdle ? deepenRemaining(games) : 0), [deepenIdle, games, deepening]);
+  const deepGame = deepening ? games.find((g) => g.id === deepening.id) : undefined;
 
   return (
     <>
@@ -159,6 +182,15 @@ function Library({ games }: { games: GameRecord[] }) {
       <p className="depth-note" id="depth-note">
         <b>{preset.label} review:</b> {preset.hint} {preset.summary} <a href={href('about')}>How the settings differ</a>
       </p>
+      {!slow && (
+        <label className="depth-note check">
+          <input type="checkbox" checked={settings.deepenIdle} onChange={(e) => updateSettings({ deepenIdle: e.target.checked })} />
+          <span>
+            Give every game a Deep review in the background while this tab is open. It uses one core, gives way when you ask for a
+            review, and pauses on battery. Best on a laptop that is plugged in.
+          </span>
+        </label>
+      )}
 
       {adding && <ImportForm compact />}
 
@@ -243,14 +275,45 @@ function Library({ games }: { games: GameRecord[] }) {
             )}
             {games.length} {games.length === 1 ? 'game' : 'games'}, {reviewedCount} reviewed.{' '}
             {reviewedCount >= 3 && <a href={href('insights')}>See what they have in common</a>}
-            {lighter.length > 0 && (
-              <>
-                <br />
-                {lighter.length === 1 ? 'One was' : `${lighter.length} were`} reviewed at a lighter setting.{' '}
-                <button className="linklike" type="button" onClick={() => requestReview(lighter.map((g) => g.id), { again: true })}>
-                  Review {lighter.length === 1 ? 'it' : 'them'} again with {preset.label}
-                </button>
-              </>
+            {deepenIdle ? (
+              deepenPaused ? (
+                <>
+                  <br />
+                  Background Deep reviews are paused.{' '}
+                  <button className="linklike" type="button" onClick={resumeDeepening}>
+                    Resume
+                  </button>
+                </>
+              ) : deepening && deepGame ? (
+                <>
+                  <br />
+                  <span className="num">
+                    Deep review in the background: {deepGame.white.name} against {deepGame.black.name},{' '}
+                    {Math.round((deepening.done / deepening.total) * 100)}%{toDeepen > 1 ? `, ${toDeepen - 1} more after it` : ''}.
+                  </span>{' '}
+                  Keep this tab open.{' '}
+                  <button className="linklike" type="button" onClick={pauseDeepening}>
+                    Pause
+                  </button>
+                </>
+              ) : (
+                toDeepen > 0 && (
+                  <>
+                    <br />
+                    {toDeepen === 1 ? 'One game' : `${toDeepen} games`} will get a Deep review in the background while this tab is open.
+                  </>
+                )
+              )
+            ) : (
+              lighter.length > 0 && (
+                <>
+                  <br />
+                  {lighter.length === 1 ? 'One was' : `${lighter.length} were`} reviewed at a lighter setting.{' '}
+                  <button className="linklike" type="button" onClick={() => requestReview(lighter.map((g) => g.id), { again: true })}>
+                    Review {lighter.length === 1 ? 'it' : 'them'} again with {preset.label}
+                  </button>
+                </>
+              )
             )}
           </p>
         )}

@@ -1,5 +1,5 @@
 import { recordFromRaw } from './importers';
-import type { GameRecord, GameReview } from './types';
+import { betterReview, compareReviews, type GameRecord, type GameReview } from './types';
 
 /** A game as the server sends it when changes are pulled. `record`, `raw` and `review` are JSON text. */
 export interface RemoteGame {
@@ -65,13 +65,6 @@ function parse<T>(text: string | null | undefined): T | null {
   }
 }
 
-/** The review made later, so a review is never replaced by an older one. */
-function newer(a: GameReview | undefined, b: GameReview | null): GameReview | undefined {
-  if (!a) return b ?? undefined;
-  if (!b) return a;
-  return b.analyzedAt > a.analyzedAt ? b : a;
-}
-
 /** Combines a pulled game with this browser's copy, if it has one. */
 export function mergeRemote(row: RemoteGame, local: GameRecord | undefined): Merge {
   if (row.deleted) return local ? { kind: 'delete' } : { kind: 'skip' };
@@ -80,10 +73,11 @@ export function mergeRemote(row: RemoteGame, local: GameRecord | undefined): Mer
   const base = row.record ? parse<GameRecord>(row.record) : recordFromRaw(row.source, row.account, parse<unknown>(row.raw));
   if (!base) return { kind: 'skip' };
   const remoteReview = parse<GameReview>(row.review);
-  const review = newer(local?.review, remoteReview);
+  // The stronger review wins wherever it was made; on a tie, this browser keeps its own.
+  const review = betterReview(local?.review, remoteReview);
   const record: GameRecord = { ...base, id: row.id, addedAt: row.addedAt || base.addedAt };
   if (review) record.review = review;
   else delete record.review;
-  const pushBack = !!local?.review && review === local.review && (!remoteReview || local.review.analyzedAt > remoteReview.analyzedAt);
+  const pushBack = !!local?.review && review === local.review && (!remoteReview || compareReviews(local.review, remoteReview) > 0);
   return { kind: 'put', record, pushBack };
 }

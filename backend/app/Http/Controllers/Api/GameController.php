@@ -38,6 +38,27 @@ class GameController extends Controller
     }
 
     /**
+     * Claims a game for a background Deep review, renews the claim, or releases it (GameSync::claim).
+     * The id travels in the body: game ids can hold "/". `granted` is false when another browser
+     * holds the game, with how far it has got.
+     */
+    public function claim(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'id' => ['required', 'string', self::ID],
+            'device' => ['required', 'string', self::DEVICE],
+            'action' => ['required', 'string', 'in:claim,renew,release'],
+            'progress' => ['nullable', 'integer', 'min:0', 'max:100'],
+        ]);
+        $result = $this->sync->claim($request->user(), $data['id'], $data['device'], $data['action'], (int) ($data['progress'] ?? 0));
+        if ($result === null) {
+            return response()->json(['message' => 'No such game.'], 404);
+        }
+
+        return response()->json($result);
+    }
+
+    /**
      * Games added or reviewed in a browser, and games removed there.
      *
      * The body is decoded here rather than read from the request, because Laravel trims strings

@@ -62,13 +62,29 @@ export function About() {
         </tbody>
       </table>
       <p style={{ marginTop: 14 }}>
-        A saved review keeps the setting it was made with. If you choose a deeper setting later, the games list and each game offer to
-        review the lighter ones again. The new review replaces the old one when it finishes.
+        A saved review keeps the setting it was made with. A deeper review always replaces a
+        lighter one, and a lighter one never replaces a deeper one, whichever was made later and on whichever of your devices. Quick and
+        Standard give each position a time limit, so a slow or busy device still finishes; when the limit stops the engine before it has
+        looked as far as the setting asks, the game says so. Deep has no time limit: it always looks its full distance ahead, however long
+        that takes on your device.
       </p>
       <p>
         On a computer with processor cores to spare, up to three copies of Stockfish run at once and share the work: each takes its own
         stretch of the game, so a single game finishes sooner, and so does a batch. The game you open always comes first. Phones and tablets
         use one copy, to save the battery.
+      </p>
+
+      <h2>Deep reviews in the background</h2>
+      <p>
+        For the most accurate verdict on one game, open it and choose <b>Deep review this game now</b>. For the rest, leave the tab open: while
+        you are not asking for anything, one copy of Stockfish gives your games a Deep review, newest first, one at a time. It is the same Deep
+        review as one you ask for, position by position; only when it runs differs. It stops the moment you ask for a review and carries on
+        afterwards, waits while a laptop runs on its battery, and works in one tab at a time. Signed in, two of your devices never work on the
+        same game. Each finished review is saved, and synced to your account, so no game is reviewed twice.
+      </p>
+      <p>
+        It is on by default on computers with four or more processor cores, and off on phones and tablets. The switch is under the review
+        setting on your games list.
       </p>
 
       <h2>What it cannot tell you</h2>

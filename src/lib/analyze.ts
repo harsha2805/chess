@@ -438,12 +438,34 @@ export function buildReview(game: ParsedGame, evals: PositionEval[], ctx: BuildC
     version: REVIEW_VERSION,
     engine: ctx.engine,
     depth: ctx.depth,
+    ...depthReached(evals, ctx.depth),
     analyzedAt: Date.now(),
     startEval: scores[0],
     moves,
     accuracy,
     opening,
   };
+}
+
+/**
+ * How far the engine really looked. The time limit can stop a search before the depth asked
+ * for, and the review says so rather than claim more than was done. A forced mate the engine
+ * found is exact, so it counts as reaching the depth asked for.
+ */
+function depthReached(evals: PositionEval[], target: number): { reached: number; capped: number } {
+  let searched = 0;
+  let total = 0;
+  let capped = 0;
+  for (const e of evals) {
+    const top = e?.lines[0];
+    if (!top) continue;
+    const depth = top.score.mate !== undefined ? Math.max(top.depth, target) : top.depth;
+    searched++;
+    total += Math.min(depth, target);
+    if (depth < target) capped++;
+  }
+  if (searched === 0) return { reached: target, capped: 0 };
+  return { reached: Math.round((total / searched) * 10) / 10, capped };
 }
 
 /** A queen "sacrifice" that is simply mate in one is best play, not brilliance. */

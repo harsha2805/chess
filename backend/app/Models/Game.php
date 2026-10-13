@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * A stored game. `record`, `raw` and `review` are JSON text, kept byte for byte as the app or the
  * chess site sent them: decoding and encoding again in PHP would turn empty objects into arrays.
  */
-#[Fillable(['game_id', 'source', 'account', 'played_ms', 'added_ms', 'record', 'raw', 'review', 'review_ms', 'deleted', 'updated_ms', 'origin'])]
+#[Fillable(['game_id', 'source', 'account', 'played_ms', 'added_ms', 'record', 'raw', 'review', 'review_ms', 'deleted', 'updated_ms', 'origin', 'claim_device', 'claim_until_ms', 'claim_progress'])]
 class Game extends Model
 {
     public $timestamps = false;
@@ -25,6 +25,8 @@ class Game extends Model
             'review_ms' => 'integer',
             'updated_ms' => 'integer',
             'deleted' => 'boolean',
+            'claim_until_ms' => 'integer',
+            'claim_progress' => 'integer',
         ];
     }
 

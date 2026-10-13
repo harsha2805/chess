@@ -27,6 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/games', [GameController::class, 'index']);
     Route::post('/games/sync', [GameController::class, 'sync']);
+    // Background Deep reviews: about one call a minute per open tab.
+    Route::post('/games/claim', [GameController::class, 'claim'])->middleware('throttle:30,1');
 
     Route::get('/accounts', [ChessAccountController::class, 'index']);
     Route::post('/accounts', [ChessAccountController::class, 'store']);

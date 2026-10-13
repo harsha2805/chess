@@ -139,7 +139,15 @@ export interface MoveReview {
 export interface GameReview {
   version: number;
   engine: string;
+  /** The depth the engine was asked to reach in every position. */
   depth: number;
+  /**
+   * The depth the engine actually reached, on average over the positions it searched. Below
+   * `depth` when the time limit stopped some searches early. Missing on older reviews.
+   */
+  reached?: number;
+  /** How many positions the time limit stopped before `depth`. Missing on older reviews. */
+  capped?: number;
   analyzedAt: number;
   startEval: Score;
   moves: MoveReview[];
@@ -177,3 +185,30 @@ export interface GameRecord {
 export const REVIEW_VERSION = 1;
 
 export const isReviewed = (g: GameRecord) => !!g.review && g.review.version === REVIEW_VERSION;
+
+/**
+ * How strong a review is, compared key by key: the review format first (an outdated review is
+ * not shown at all), then the depth asked for, then the depth reached, then the later one.
+ * The server ranks reviews the same way (GameSync::rank).
+ */
+export function reviewRank(r: GameReview): number[] {
+  return [r.version ?? 0, r.depth ?? 0, r.reached ?? r.depth ?? 0, r.analyzedAt ?? 0];
+}
+
+/** Below zero when `a` is the weaker review, above zero when it is the stronger, zero when they rank the same. */
+export function compareReviews(a: GameReview, b: GameReview): number {
+  const ra = reviewRank(a);
+  const rb = reviewRank(b);
+  for (let i = 0; i < ra.length; i++) if (ra[i] !== rb[i]) return ra[i] - rb[i];
+  return 0;
+}
+
+/**
+ * The stronger of two reviews, so a deeper review is never replaced by a lighter one made
+ * later. On a tie the first is kept, so two equal copies never replace each other back and forth.
+ */
+export function betterReview(a: GameReview | null | undefined, b: GameReview | null | undefined): GameReview | undefined {
+  if (!a) return b ?? undefined;
+  if (!b) return a;
+  return compareReviews(b, a) > 0 ? b : a;
+}

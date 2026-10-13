@@ -4,7 +4,7 @@ import { ApiError, api } from './api';
 import { noteError } from './diagnostics';
 import type { Platform } from './importers';
 import { mergeRemote, toPush, type PushGame, type RemoteGame } from './remote';
-import { applyRemote, clearLocal, getState as getGames, onGamesChanged, type GamesChange } from './store';
+import { applyRemote, clearLocal, getState as getGames, onGamesChanged, setDeepenClaims, type DeepenClaims, type GamesChange } from './store';
 import type { GameRecord } from './types';
 
 // ---- Accounts: optional sign-in that keeps games on the server and brings in new ones ----
@@ -157,6 +157,7 @@ async function begin(user: User) {
     saveMemo();
   }
   set({ status: 'signed-in', user, syncError: null });
+  setDeepenClaims(claims);
   startTimer();
   void loadAccounts();
   // Not awaited: the first upload can take a while, and the person can carry on meanwhile.
@@ -166,6 +167,7 @@ async function begin(user: User) {
 /** Leaves the account. With `forget`, this browser's copy of its games is removed too. */
 async function end(forget: boolean) {
   stopTimer();
+  setDeepenClaims(null);
   memo = null;
   saveMemo();
   if (forget) await clearLocal();
@@ -270,6 +272,33 @@ export async function checkForGames(force = true) {
   await sync().catch(() => undefined);
   set({ checking: false });
 }
+
+// ---- Background Deep reviews: one device at a time per game ----
+
+type ClaimAnswer = { granted: boolean; progress: number | null };
+
+function askClaim(id: string, action: 'claim' | 'renew' | 'release', progress = 0): Promise<ClaimAnswer> {
+  if (!memo) return Promise.resolve({ granted: true, progress: null });
+  return api<ClaimAnswer>('games/claim', { method: 'POST', body: { id, device: memo.device, action, progress } });
+}
+
+/**
+ * When the server cannot answer (offline, a game it has not been sent yet, a server not yet
+ * updated), the review goes ahead: two devices on one game only cost time.
+ */
+const claims: DeepenClaims = {
+  claim: (id) =>
+    askClaim(id, 'claim').then(
+      (a) => ({ granted: a.granted, progress: a.progress ?? undefined }),
+      () => ({ granted: true }),
+    ),
+  renew: (id, progress) =>
+    askClaim(id, 'renew', progress).then(
+      (a) => a.granted,
+      () => true,
+    ),
+  release: (id) => void askClaim(id, 'release').catch(() => undefined),
+};
 
 // ---- Sending and pulling games ----
 
