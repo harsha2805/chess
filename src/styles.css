@@ -455,10 +455,6 @@ textarea {
   text-underline-offset: 3px;
   cursor: pointer;
 }
-.sep {
-  /* The font draws the dot near the right of its box: less room before it than after. */
-  margin: 0 0.5em 0 0.2em;
-}
 .linklike:hover {
   text-decoration-thickness: 2px;
 }
@@ -1046,7 +1042,8 @@ textarea {
   line-height: 1;
   letter-spacing: -0.02em;
 }
-.note-mark .sep {
+.note-mark .sep,
+.review-head .meta .sep {
   display: inline-block;
   width: 4px;
   height: 4px;
@@ -1281,6 +1278,11 @@ a.note-eval {
   display: block;
   padding: 8px 0 4px 46px;
   font-weight: 900;
+}
+.notation .result-why {
+  margin-left: 10px;
+  color: var(--ink-3);
+  font-weight: 700;
 }
 
 /* Summary: who rode which lines. */

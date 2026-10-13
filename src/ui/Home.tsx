@@ -19,6 +19,7 @@ import {
   type GameSort,
   type Progress,
 } from '../lib/store';
+import { ENDING_LABEL } from '../lib/ending';
 import type { GameRecord, TimeClass } from '../lib/types';
 import { ImportForm } from './ImportForm';
 import { OUTCOME_LABEL, TIME_CLASS_LABEL, agoLabel, fold, gameDateLabel, perspective, resultMark, timeLabel } from './format';
@@ -65,6 +66,7 @@ function searchText(game: GameRecord, player: string): string {
       TIME_CLASS_LABEL[game.timeClass],
       gameDateLabel(game),
       outcome && `${OUTCOME_LABEL[outcome].verb} ${outcome}`,
+      game.ending && ENDING_LABEL[game.ending],
       side === 'w' ? 'white' : side === 'b' ? 'black' : '',
     ]
       .filter(Boolean)
@@ -440,6 +442,7 @@ const GameRow = memo(function GameRow({ game, player, progress, queued, failure 
       </span>
       <span className="sub">
         {reviewed && game.review!.opening ? <a href={href('dictionary', 'opening', game.review!.opening.name)}>{game.review!.opening.name}</a> : <span>{Math.ceil(game.plies / 2)} moves</span>}
+        {game.ending && <span>{ENDING_LABEL[game.ending]}</span>}
         {time && <span>{time}</span>}
         <span>{gameDateLabel(game)}</span>
       </span>

@@ -162,6 +162,21 @@ export interface PlayerInfo {
   rating?: number;
 }
 
+/** How a finished game ended. */
+export type Ending =
+  | 'checkmate'
+  | 'resignation'
+  | 'time'
+  /** A player left the game or never moved: AFK. */
+  | 'abandoned'
+  | 'agreement'
+  | 'repetition'
+  | 'stalemate'
+  | 'insufficient'
+  | 'fifty'
+  /** Time ran out, but the other side had nothing left to mate with. */
+  | 'time-insufficient';
+
 export interface GameRecord {
   id: string;
   source: 'chesscom' | 'lichess' | 'pgn' | 'sample';
@@ -172,6 +187,8 @@ export interface GameRecord {
   white: PlayerInfo;
   black: PlayerInfo;
   result: Result;
+  /** How the game ended. Null when nothing says; missing on games saved before it was read. */
+  ending?: Ending | null;
   playedAt: number;
   timeControl?: { base: number; inc: number };
   timeClass: TimeClass;

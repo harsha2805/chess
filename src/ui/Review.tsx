@@ -8,7 +8,8 @@ import type { Color, GameRecord, GameReview, Mark, MoveReview, ParsedGame } from
 import { Board, EvalBar } from './Board';
 import { EvalGraph } from './EvalGraph';
 import { MarkTag } from './MarkTag';
-import { gameDateLabel, gameSite, perspective, resultMark, resultText, timeLabel } from './format';
+import { ENDING_LABEL, resultWithEnding } from '../lib/ending';
+import { gameDateLabel, gameSite, perspective, resultMark, timeLabel } from './format';
 import { IconExternal, IconFirst, IconFlip, IconLast, IconNext, IconPause, IconPlay, IconPrev } from './icons';
 import { href } from './router';
 
@@ -152,7 +153,7 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
         </h1>
         <div className="meta">
           <span>
-            <b>{resultText(game)}</b> {game.result !== '*' && <span className="num">{resultMark(game.result)}</span>}
+            <b>{resultWithEnding(game)}</b> {game.result !== '*' && <span className="num">{resultMark(game.result)}</span>}
           </span>
           {timeLabel(game) && <span>{timeLabel(game)}</span>}
           <span>{gameDateLabel(game)}</span>
@@ -249,7 +250,7 @@ function ReviewGame({ game, startPly }: { game: GameRecord; startPly?: number })
 
           <section>
             <h2 className="section-title">Moves</h2>
-            <Notation parsed={parsed} review={review} ply={ply} onSelect={setPly} result={game.result} />
+            <Notation parsed={parsed} review={review} ply={ply} onSelect={setPly} result={game.result} ending={game.ending} />
           </section>
 
           {review && (
@@ -289,12 +290,8 @@ function PlayerBar({ game, color, clock, accuracy }: { game: GameRecord; color: 
  * Which setting made the review, and whether the time limit cut it short. Below Deep, a way to
  * give this game a Deep review now, or how far the background review of it has got.
  */
-/** The dot between parts of a line. The font's dot sits close to its right edge, so it gets its own room. */
-const Sep = () => (
-  <span className="sep" aria-hidden="true">
-    ·
-  </span>
-);
+/** The dot between parts of a line, drawn rather than typed, as in the move notes. */
+const Sep = () => <span className="sep" aria-hidden="true" />;
 
 function ReviewSetting({ game, review }: { game: GameRecord; review: GameReview }) {
   const slow = useStore((s) => s.slowEngine);
@@ -493,9 +490,10 @@ interface NotationProps {
   ply: number;
   onSelect: (ply: number) => void;
   result: GameRecord['result'];
+  ending: GameRecord['ending'];
 }
 
-function Notation({ parsed, review, ply, onSelect, result }: NotationProps) {
+function Notation({ parsed, review, ply, onSelect, result, ending }: NotationProps) {
   const box = useRef<HTMLDivElement>(null);
 
   // Keep the current move visible inside the list without scrolling the page.
@@ -558,7 +556,12 @@ function Notation({ parsed, review, ply, onSelect, result }: NotationProps) {
           {cell(b)}
         </div>
       ))}
-      {result !== '*' && <span className="result">{resultMark(result)}</span>}
+      {result !== '*' && (
+        <span className="result">
+          {resultMark(result)}
+          {ending && <span className="result-why">{ENDING_LABEL[ending]}</span>}
+        </span>
+      )}
     </div>
   );
 }

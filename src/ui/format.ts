@@ -77,13 +77,6 @@ export function gameSite(game: GameRecord): string | undefined {
   return site && !/^https?:|chess\.com|lichess/i.test(site) ? site : undefined;
 }
 
-export function resultText(game: GameRecord): string {
-  if (game.result === '1-0') return 'White won';
-  if (game.result === '0-1') return 'Black won';
-  if (game.result === '1/2-1/2') return 'Draw';
-  return 'Unfinished';
-}
-
 export const resultMark = (result: GameRecord['result']) => (result === '1/2-1/2' ? '½–½' : result.replace('-', '–'));
 
 /** Which side the reviewer played, from the import or from the chosen player name. */

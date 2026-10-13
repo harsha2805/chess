@@ -3,6 +3,7 @@ import { buildReview, evaluatePosition, positionsOf, repeatKey } from './analyze
 import { loadBook } from './book';
 import { clearGames, deleteGames, isPersistent, loadGame, loadGames, saveGames } from './db';
 import { noteError } from './diagnostics';
+import { detectEnding } from './ending';
 import { PREVIEW } from '../config';
 import { ASM_ENGINE, WASM_ENGINE, createBrowserEngine } from './engine-browser';
 import type { Platform } from './importers';
@@ -192,6 +193,29 @@ export async function init() {
   set({ ready: true, games: games.sort(byDate) });
   openedAt = Date.now();
   scheduleIdle();
+  void fillEndings();
+}
+
+/** Reads how a game ended from its PGN, for a game saved before that was kept. */
+function withEnding(g: GameRecord): GameRecord {
+  if (g.ending !== undefined) return g;
+  try {
+    return { ...g, ending: detectEnding(parsePgn(g.pgn), g.result) ?? null };
+  } catch {
+    return { ...g, ending: null };
+  }
+}
+
+/** Fills in how each older game ended, a few games at a time so the page stays responsive. */
+async function fillEndings() {
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const batch = state.games.filter((g) => g.ending === undefined).slice(0, 25);
+    if (batch.length === 0) return;
+    const filled = new Map(batch.map((g) => [g.id, withEnding(g)]));
+    set({ games: state.games.map((g) => filled.get(g.id) ?? g) });
+    await saveGames([...filled.values()]);
+  }
 }
 
 export function updateSettings(patch: Partial<Settings>) {
@@ -263,7 +287,7 @@ export async function applyRemote(saved: GameRecord[], deleted: string[]) {
   const games = new Map(state.games.map((g) => [g.id, g]));
   for (const id of deleted) games.delete(id);
   const stronger: string[] = [];
-  const records = saved.map((g) => {
+  const records = saved.map(withEnding).map((g) => {
     const mine = games.get(g.id)?.review;
     const review = betterReview(g.review, mine);
     if (review === g.review) return g;

@@ -1,3 +1,4 @@
+import { detectEnding } from './ending';
 import { parsePgn, parseTimeControl, playedAtFromHeaders, splitPgn, timeClassOf, PgnError } from './pgn';
 import type { Color, GameRecord, ParsedGame, PlayerInfo, Result, TimeClass } from './types';
 
@@ -36,11 +37,14 @@ interface Extras {
   timeControl?: { base: number; inc: number };
   timeClass?: TimeClass;
   me?: Color;
+  /** Lichess's game status ("resign", "outoftime", "timeout"...), which says how it ended. */
+  status?: string;
 }
 
 function toRecord(pgn: string, parsed: ParsedGame, extras: Extras): GameRecord {
   const h = parsed.headers;
   const now = Date.now();
+  const result = extras.result ?? parsed.result;
   return {
     id: extras.id,
     source: extras.source,
@@ -49,7 +53,8 @@ function toRecord(pgn: string, parsed: ParsedGame, extras: Extras): GameRecord {
     pgn,
     white: extras.white ?? { name: h.White && h.White !== '?' ? h.White : 'White', rating: rating(h.WhiteElo) },
     black: extras.black ?? { name: h.Black && h.Black !== '?' ? h.Black : 'Black', rating: rating(h.BlackElo) },
-    result: extras.result ?? parsed.result,
+    result,
+    ending: detectEnding(parsed, result, extras.status) ?? null,
     playedAt: extras.playedAt ?? playedAtFromHeaders(h) ?? now,
     timeControl: extras.timeControl ?? parseTimeControl(h.TimeControl),
     timeClass: extras.timeClass ?? timeClassOf(h.TimeControl),
@@ -217,6 +222,7 @@ export function recordsFromLichess(games: LichessGame[], username: string): Game
           timeControl: g.clock ? { base: g.clock.initial, inc: g.clock.increment } : undefined,
           timeClass: (g.speed && LICHESS_SPEED[g.speed]) || 'unknown',
           me: white.name.toLowerCase() === lower ? 'w' : black.name.toLowerCase() === lower ? 'b' : undefined,
+          status: g.status,
         }),
       );
     } catch {
