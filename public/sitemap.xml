@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- The app has one address; its pages live after "#", which search engines treat as the same page. -->
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://chessdebrief.holostack.in/</loc>
-    <changefreq>monthly</changefreq>
-  </url>
-</urlset>

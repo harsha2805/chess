@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { APP_NAME, REPO_URL } from './config';
+import { APP_NAME, PREVIEW, REPO_URL } from './config';
 import { useAccount } from './lib/account';
 import { Home } from './ui/Home';
 import { Review } from './ui/Review';
@@ -133,6 +133,9 @@ export function App() {
                 : 'Runs in your browser. Your games stay here unless you create an account.'}
           </p>
           <a href={href('about')}>How it works</a>
+          {/* Real pages, outside the app, that search engines can read. The preview build has none. */}
+          {!PREVIEW && <a href="/openings/">Openings A to Z</a>}
+          {!PREVIEW && <a href="/guide/">Guides</a>}
           <a href={reportHref}>Report a bug</a>
           {donateUrl && (
             <a href={donateUrl} target="_blank" rel="noreferrer">

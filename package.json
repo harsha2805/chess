@@ -11,7 +11,7 @@
     "prebuild": "npm run prepare-assets",
     "dev": "vite",
     "dev:api": "php backend/artisan serve --port=8000",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && tsx scripts/build-pages.ts",
     "build:server": "npm run build && node scripts/copy-to-backend.mjs",
     "deploy:zip": "npm run build:server && node scripts/make-deploy.mjs",
     "preview": "vite preview",
