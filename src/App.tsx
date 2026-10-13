@@ -23,6 +23,7 @@ export function App() {
   const [theme, toggleTheme] = useTheme();
   const accountStatus = useAccount((s) => s.status);
   const email = useAccount((s) => s.user?.email);
+  const donateUrl = useAccount((s) => s.donateUrl);
 
   let page;
   let title = `${APP_NAME}: free chess game review`;
@@ -42,7 +43,7 @@ export function App() {
     page = <Report gameId={a === 'game' ? b : undefined} ply={a === 'game' && route[3] ? Number(route[3]) || undefined : undefined} />;
     title = `Report a bug | ${APP_NAME}`;
   } else if (section === 'signin' || section === 'signup') {
-    page = <SignIn create={section === 'signup'} />;
+    page = <SignIn create={section === 'signup'} problem={a} />;
     title = `${section === 'signup' ? 'Create an account' : 'Sign in'} | ${APP_NAME}`;
   } else if (section === 'forgot') {
     page = <Forgot />;
@@ -129,6 +130,11 @@ export function App() {
           </p>
           <a href={href('about')}>How it works</a>
           <a href={reportHref}>Report a bug</a>
+          {donateUrl && (
+            <a href={donateUrl} target="_blank" rel="noreferrer">
+              Support {APP_NAME}
+            </a>
+          )}
           <a href={REPO_URL} target="_blank" rel="noreferrer">
             Source code
           </a>

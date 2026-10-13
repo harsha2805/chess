@@ -24,6 +24,12 @@ return [
     'max_accounts' => 5,
 
     /*
+    | Where the "Support ChessDebrief" link goes: a page at Buy Me a Coffee, Ko-fi, GitHub
+    | Sponsors, Razorpay, PayPal or similar. The link is hidden while this is empty.
+    */
+    'donate_url' => env('CHESSDEBRIEF_DONATE_URL', ''),
+
+    /*
     | The maintenance page (public/maintenance.php) runs a fixed set of artisan commands
     | for hosts without a command line. It stays switched off until this password is set,
     | and refuses passwords shorter than 16 characters.

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
@@ -29,7 +30,13 @@ class AuthController extends Controller
         $user = Auth::guard('web')->user();
         $user?->markSeen();
 
-        return response()->json(['user' => $user?->toApi()]);
+        return response()->json([
+            'user' => $user?->toApi(),
+            // Ways to sign in that this server has set up, so the app shows only those.
+            'providers' => ['google' => GoogleController::enabled()],
+            // The "Support ChessDebrief" link, or null to hide it.
+            'donate' => self::donateUrl(),
+        ]);
     }
 
     public function register(Request $request): JsonResponse
@@ -59,7 +66,10 @@ class AuthController extends Controller
         ]);
 
         if (! Auth::guard('web')->attempt($data, remember: true)) {
-            throw ValidationException::withMessages(['email' => 'That email and password do not match an account.']);
+            $googleOnly = User::where('email', $data['email'])->whereNull('password')->whereNotNull('google_id')->exists();
+            throw ValidationException::withMessages(['email' => $googleOnly
+                ? 'This account signs in with Google. Use "Continue with Google", or set a password with "Forgot your password?".'
+                : 'That email and password do not match an account.']);
         }
         $request->session()->regenerate();
         $user = Auth::guard('web')->user();
@@ -116,10 +126,15 @@ class AuthController extends Controller
     /** Deletes the account and everything stored with it. Games in the browser are untouched. */
     public function destroy(Request $request): Response
     {
-        $request->validate(['password' => ['required', 'string', 'current_password:web']], [
-            'password.current_password' => 'That password is not right.',
-        ]);
         $user = $request->user();
+        if ($user->password !== null) {
+            $request->validate(['password' => ['required', 'string', 'current_password:web']], [
+                'password.current_password' => 'That password is not right.',
+            ]);
+        } elseif (Str::lower(trim((string) $request->input('confirm'))) !== $user->email) {
+            // Signed in only with Google: typing the address confirms instead.
+            throw ValidationException::withMessages(['confirm' => 'Type your email address exactly to confirm.']);
+        }
         Auth::guard('web')->logout();
         DB::table('sessions')->where('user_id', $user->id)->delete();
         $user->delete();
@@ -127,6 +142,13 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return response()->noContent();
+    }
+
+    private static function donateUrl(): ?string
+    {
+        $url = (string) config('chessdebrief.donate_url');
+
+        return preg_match('#^https://#i', $url) ? $url : null;
     }
 
     private static function email(Request $request): string

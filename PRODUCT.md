@@ -30,7 +30,7 @@ ChessDebrief gives a full engine review of a player's games for free and without
 ## Capabilities and Constraints
 
 - Built with Vite, React 19 and TypeScript, with a Laravel 13 backend in `backend/` (MySQL) for accounts, game sync, the scheduled fetch of new games and bug report emails. The React build is copied into Laravel's `public/` and deployed to shared hosting (DirectAdmin or cPanel).
-- Accounts are optional, with email and password. Signed in, games and reviews sync across browsers, and linked chess.com and Lichess accounts are checked for new games every 2 hours (and on "Check for new games"). The app works fully without signing in.
+- Accounts are optional, with email and password or with Google. Signed in, games and reviews sync across browsers, and linked chess.com and Lichess accounts are checked for new games every 2 hours (and on "Check for new games"). The app works fully without signing in.
 - Stockfish 19 runs as single-threaded WebAssembly in a Web Worker, by design, because that needs no special headers. Games and reviews live in IndexedDB.
 - Routes: Games (home or library), Review (`#/game/:id/:ply`), Insights, How it works (About), Report a bug, Sign in, Create an account, Set a new password, Your account. Hash routing is used, and the preview build keeps routes in memory.
 - Move marks: brilliant, great, best, excellent, good, book, forced, inaccuracy, miss (missed chance), mistake, blunder. Their thresholds are product facts, documented on the About page.
@@ -38,6 +38,8 @@ ChessDebrief gives a full engine review of a player's games for free and without
 - Review depth presets can be chosen. Username import calls the public chess.com and Lichess APIs straight from the browser.
 - A preview build (`npm run build:preview`) turns off username import, accounts and report sending.
 - The name is kept in one place: `src/config.ts`.
+
+- A quiet "Support ChessDebrief" link (footer and About page) points to a donation page when one is set. Donations never unlock anything.
 
 ## Brand Commitments
 

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { FETCH_EVERY_HOURS } from '../config';
 import {
+  GOOGLE_SIGN_IN,
   checkForGames,
   deleteAccount,
   linkAccount,
@@ -19,6 +20,26 @@ import { agoLabel } from './format';
 import { href, navigate } from './router';
 
 const PLATFORM_NAME = { chesscom: 'Chess.com', lichess: 'Lichess' } as const;
+
+/** Why a Google sign-in came back to the sign-in page (#/signin/google-<reason>). */
+const GOOGLE_PROBLEM: Record<string, string> = {
+  'google-cancelled': 'Google sign-in was cancelled. Nothing was changed.',
+  'google-failed': 'Google sign-in did not work this time. Try again.',
+  'google-unverified':
+    'An account with that address already exists, and Google has not confirmed the address is yours, so it was not linked. Sign in with your password instead.',
+};
+
+/** Google's mark, as its sign-in guidelines ask for on the button. */
+function GoogleMark() {
+  return (
+    <svg className="google-mark" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
 
 /** Form state shared by the account forms: busy flag, the message for the whole form, one per field. */
 function useForm() {
@@ -69,10 +90,11 @@ function useReady(): 'wait' | 'unavailable' | 'ok' {
   return 'ok';
 }
 
-/** Sign in, or create an account. */
-export function SignIn({ create = false }: { create?: boolean }) {
+/** Sign in, or create an account. `problem` is set when Google sign-in came back here. */
+export function SignIn({ create = false, problem }: { create?: boolean; problem?: string }) {
   const ready = useReady();
   const status = useAccount((s) => s.status);
+  const google = useAccount((s) => s.providers.google);
   const localGames = useStore((s) => s.games.length);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -101,6 +123,22 @@ export function SignIn({ create = false }: { create?: boolean }) {
         <p>
           The {localGames} {localGames === 1 ? 'game' : 'games'} in this browser will be saved to the account.
         </p>
+      )}
+
+      {problem && GOOGLE_PROBLEM[problem] && (
+        <p className="notice error" role="alert" style={{ marginTop: 18 }}>
+          {GOOGLE_PROBLEM[problem]}
+        </p>
+      )}
+
+      {google && (
+        <div className="oauth">
+          <a className="btn quiet google-btn" href={GOOGLE_SIGN_IN}>
+            <GoogleMark />
+            Continue with Google
+          </a>
+          <span className="oauth-or">or {create ? 'create one' : 'sign in'} with an email and password</span>
+        </div>
       )}
 
       <form className="form" onSubmit={submit} noValidate>
@@ -347,7 +385,9 @@ export function AccountPage() {
     <article className="prose">
       <h1>Your account</h1>
       <p>
-        Signed in as <b>{user.email}</b>. {games} {games === 1 ? 'game is' : 'games are'} saved to it
+        Signed in as <b>{user.email}</b>
+        {user.google ? (user.hasPassword ? ', with Google or your password' : ' with Google') : ''}. {games} {games === 1 ? 'game is' : 'games are'} saved
+        to it
         {syncing ? ', saving changes now' : ''}.
       </p>
       {syncError && (
@@ -429,18 +469,18 @@ export function AccountPage() {
           noValidate
         >
           <label className="field">
-            <span>Your password, to confirm</span>
+            <span>{user.hasPassword ? 'Your password, to confirm' : `Type ${user.email} to confirm`}</span>
             <input
               className="input"
-              type="password"
+              type={user.hasPassword ? 'password' : 'email'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
+              autoComplete={user.hasPassword ? 'current-password' : 'off'}
               required
-              aria-invalid={del.fields.password ? true : undefined}
-              aria-describedby={del.fields.password ? 'delete-error' : undefined}
+              aria-invalid={del.fields.password || del.fields.confirm ? true : undefined}
+              aria-describedby={del.fields.password || del.fields.confirm ? 'delete-error' : undefined}
             />
-            <FieldError text={del.fields.password} id="delete-error" />
+            <FieldError text={del.fields.password ?? del.fields.confirm} id="delete-error" />
           </label>
           {del.error && (
             <p className="notice error" role="alert">

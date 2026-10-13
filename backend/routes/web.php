@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\GoogleController;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -16,3 +17,7 @@ Route::get('/', function () {
 
     return response()->file($app, ['Cache-Control' => 'no-cache']);
 })->withoutMiddleware([StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class, EncryptCookies::class, AddQueuedCookiesToResponse::class]);
+
+// Sign-in with Google (off until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set).
+Route::get('/auth/google/redirect', [GoogleController::class, 'redirect'])->middleware('throttle:auth');
+Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->middleware('throttle:auth');

@@ -16,6 +16,9 @@ import type { GameRecord } from './types';
 export interface User {
   id: number;
   email: string;
+  /** False for someone who signs in only with Google. */
+  hasPassword: boolean;
+  google: boolean;
 }
 
 export interface ChessAccount {
@@ -38,6 +41,10 @@ export interface AccountState {
   /** Games the last check brought in, or null before the first check this visit. */
   lastAdded: number | null;
   syncError: string | null;
+  /** Ways to sign in besides email and password that the server has set up. */
+  providers: { google: boolean };
+  /** The "Support ChessDebrief" page, when the server has one set. */
+  donateUrl: string | null;
 }
 
 let state: AccountState = {
@@ -48,6 +55,8 @@ let state: AccountState = {
   checking: false,
   lastAdded: null,
   syncError: null,
+  providers: { google: false },
+  donateUrl: null,
 };
 const listeners = new Set<() => void>();
 
@@ -121,7 +130,9 @@ export async function initAccount() {
   onGamesChanged(localChange);
   let user: User | null;
   try {
-    user = (await api<{ user: User | null }>('session')).user;
+    const session = await api<{ user: User | null; providers?: { google?: boolean }; donate?: string | null }>('session');
+    user = session.user;
+    set({ providers: { google: !!session.providers?.google }, donateUrl: session.donate ?? null });
   } catch {
     // No backend at this address, or it could not be reached: the app works as before.
     set({ status: 'unavailable' });
@@ -159,6 +170,9 @@ async function end(forget: boolean) {
   set({ status: 'signed-out', user: null, accounts: [], lastAdded: null, syncError: null, syncing: false, checking: false });
 }
 
+/** Where the Google button goes: the server takes it from there and comes back to the app. */
+export const GOOGLE_SIGN_IN = 'auth/google/redirect';
+
 export async function signIn(email: string, password: string) {
   const { user } = await api<{ user: User }>('login', { method: 'POST', body: { email, password } });
   await begin(user);
@@ -186,9 +200,14 @@ export async function resetPassword(token: string, email: string, password: stri
   await begin(user);
 }
 
-/** Deletes the account and what the server holds. The games stay in this browser, as before signing up. */
-export async function deleteAccount(password: string) {
-  await api('user', { method: 'DELETE', body: { password } });
+/**
+ * Deletes the account and what the server holds. The games stay in this browser, as before
+ * signing up. Confirmed with the password, or, for someone who signs in only with Google,
+ * with their email address typed out.
+ */
+export async function deleteAccount(confirmation: string) {
+  const body = state.user?.hasPassword === false ? { confirm: confirmation } : { password: confirmation };
+  await api('user', { method: 'DELETE', body });
   await end(false);
 }
 

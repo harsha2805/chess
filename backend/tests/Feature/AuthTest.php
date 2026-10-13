@@ -15,7 +15,17 @@ class AuthTest extends TestCase
 
     public function test_session_is_empty_before_signing_in(): void
     {
-        $this->getJson('/api/session')->assertOk()->assertExactJson(['user' => null]);
+        $this->getJson('/api/session')->assertOk()->assertJsonPath('user', null);
+    }
+
+    public function test_the_session_carries_the_donation_link_only_when_it_is_https(): void
+    {
+        config(['chessdebrief.donate_url' => '']);
+        $this->getJson('/api/session')->assertJsonPath('donate', null);
+        config(['chessdebrief.donate_url' => 'javascript:alert(1)']);
+        $this->getJson('/api/session')->assertJsonPath('donate', null);
+        config(['chessdebrief.donate_url' => 'https://ko-fi.com/chessdebrief']);
+        $this->getJson('/api/session')->assertJsonPath('donate', 'https://ko-fi.com/chessdebrief');
     }
 
     public function test_register_signs_in_and_lowercases_the_email(): void
@@ -66,7 +76,7 @@ class AuthTest extends TestCase
 
         $this->flushSession();
         $this->app['auth']->forgetGuards();
-        $this->getJson('/api/session')->assertExactJson(['user' => null]);
+        $this->getJson('/api/session')->assertJsonPath('user', null);
     }
 
     public function test_signed_out_requests_to_games_are_refused(): void

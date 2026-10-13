@@ -54,6 +54,12 @@ class User extends Authenticatable
 
     public function toApi(): array
     {
-        return ['id' => $this->id, 'email' => $this->email];
+        return [
+            'id' => $this->id,
+            'email' => $this->email,
+            // A person who signs in only with Google has no password to confirm things with.
+            'hasPassword' => $this->password !== null,
+            'google' => $this->google_id !== null,
+        ];
     }
 }

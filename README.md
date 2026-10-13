@@ -24,7 +24,7 @@ The name lives in one place, `src/config.ts`.
   analysed twice.
 - **Insights**: accuracy by phase and by game, error rate against the clock, the most
   common error patterns with links to the positions, and results by opening.
-- **Accounts (optional)**: sign up with an email and password. Games and reviews sync
+- **Accounts (optional)**: sign up with an email and password, or with Google. Games and reviews sync
   between browsers. Accounts you get games for by username are checked for new games
   every 2 hours by a scheduled job, while the app is open, and on "Check for new games".
 - **Bug reports**: a form that emails the developer through the backend (`POST /api/report`).
@@ -80,6 +80,31 @@ Without the backend running, the app still works and the account features stay h
   brings it back.
 - Sign-in is Laravel Sanctum's cookie session for single-page apps, so there are no
   tokens in the browser. Signing out removes the games from that browser.
+
+## Sign-in with Google
+
+Off until `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in `backend/.env`.
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), create a project.
+2. **APIs & Services > OAuth consent screen**: choose "External", give the app name,
+   a support email and the site's home page. The scopes needed are the basic ones
+   (`openid`, `email`, `profile`), which need no review from Google.
+   Publish the app ("In production"); while it is "Testing", only listed test users can sign in.
+3. **APIs & Services > Credentials > Create credentials > OAuth client ID**, type
+   "Web application". Under **Authorized redirect URIs** add
+   `https://your.domain/auth/google/callback` (and `http://localhost:5173/auth/google/callback`
+   for development). No JavaScript origins are needed.
+4. Put the client ID and secret in `.env`, then press **Clear caches** on the maintenance page.
+
+A Google address that already has an account is linked to it only when Google says the
+address is verified. People who sign in only with Google have no password; they confirm
+account deletion by typing their address, and can set a password with "Forgot your password?".
+
+## Donations
+
+Set `CHESSDEBRIEF_DONATE_URL` in `backend/.env` to a donation page (https), and a
+"Support ChessDebrief" link appears in the footer and on the About page. It is hidden
+while empty. Any provider works, since the site only links to it.
 
 ## Deploy on shared hosting (DirectAdmin, cPanel)
 

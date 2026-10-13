@@ -3,15 +3,17 @@ import { MARK_LABEL, MARK_ORDER } from '../lib/explain';
 import { MARK_MEANING } from '../lib/dictionary';
 import { DEPTHS, type DepthPreset } from '../lib/store';
 import { MarkTag } from './MarkTag';
+import { useAccount } from '../lib/account';
 import { href } from './router';
 
 export function About() {
+  const donateUrl = useAccount((s) => s.donateUrl);
   return (
     <article className="prose">
       <h1>How {APP_NAME} works</h1>
       <p>
         {APP_NAME} is a free review tool for chess games. It gets your games from chess.com or Lichess, or from a PGN you paste, and goes
-        through them with the Stockfish engine. The engine runs inside your browser, so there is no server to pay for and no daily limit.
+        through them with the Stockfish engine. The engine runs inside your browser, so reviews cost nothing to run and there is no daily limit.
       </p>
 
       <h2>How a move is judged</h2>
@@ -88,6 +90,20 @@ export function About() {
         The engine still runs in your browser. Signing out removes the games from that browser, and deleting the account deletes everything
         saved with it.
       </p>
+
+      {donateUrl && (
+        <>
+          <h2>Support {APP_NAME}</h2>
+          <p>
+            {APP_NAME} is free, with no ads and no paid tier. The reviews run in your browser, but the site, the accounts and the
+            fetching of new games run on a server that costs money every month. If the reviews help you, you can{' '}
+            <a href={donateUrl} target="_blank" rel="noreferrer">
+              support it
+            </a>
+            . Everything stays free either way.
+          </p>
+        </>
+      )}
 
       <h2>Built with</h2>
       <ul>

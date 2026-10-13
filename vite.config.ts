@@ -26,6 +26,7 @@ export default defineConfig({
     proxy: {
       '/api': { target: API_TARGET },
       '/sanctum': { target: API_TARGET },
+      '/auth': { target: API_TARGET },
     },
   },
   test: { environment: 'node', include: ['tests/**/*.test.ts'], testTimeout: 120000 },

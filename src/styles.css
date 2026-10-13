@@ -2335,6 +2335,30 @@ a.note-eval {
   position: absolute;
   left: -9999px;
 }
+/* Sign-in with Google, above the email form. */
+.oauth {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-top: 22px;
+  max-width: 640px;
+}
+.google-btn {
+  gap: 10px;
+}
+.google-mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.oauth-or {
+  color: var(--ink-3);
+  font-size: 0.875rem;
+}
+.oauth + .form {
+  margin-top: 14px;
+}
+
 .form-actions {
   display: flex;
   flex-wrap: wrap;
