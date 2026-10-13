@@ -19,6 +19,8 @@ export interface User {
   /** False for someone who signs in only with Google. */
   hasPassword: boolean;
   google: boolean;
+  /** May open the admin page (#/admin). */
+  isAdmin: boolean;
 }
 
 export interface ChessAccount {
@@ -198,6 +200,12 @@ export async function requestPasswordReset(email: string): Promise<string> {
 export async function resetPassword(token: string, email: string, password: string) {
   const { user } = await api<{ user: User }>('reset-password', { method: 'POST', body: { token, email, password } });
   await begin(user);
+}
+
+/** Stops signing in with Google. The server refuses when the account has no password to fall back on. */
+export async function disconnectGoogle() {
+  const { user } = await api<{ user: User }>('user/google', { method: 'DELETE' });
+  set({ user });
 }
 
 /**

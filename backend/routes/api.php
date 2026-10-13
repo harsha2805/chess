@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChessAccountController;
 use App\Http\Controllers\Api\GameController;
@@ -22,6 +23,7 @@ Route::post('/report', [ReportController::class, 'store'])->middleware('throttle
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::delete('/user', [AuthController::class, 'destroy'])->middleware('throttle:auth');
+    Route::delete('/user/google', [AuthController::class, 'disconnectGoogle']);
 
     Route::get('/games', [GameController::class, 'index']);
     Route::post('/games/sync', [GameController::class, 'sync']);
@@ -30,4 +32,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/accounts', [ChessAccountController::class, 'store']);
     Route::delete('/accounts/{id}', [ChessAccountController::class, 'destroy'])->whereNumber('id');
     Route::post('/refresh', [ChessAccountController::class, 'refresh'])->middleware('throttle:refresh');
+
+    // The admin page: only for admins (User::isAdmin).
+    Route::middleware('can:admin')->prefix('admin')->group(function () {
+        Route::get('/status', [AdminController::class, 'status']);
+        Route::post('/run', [AdminController::class, 'run'])->middleware('throttle:admin');
+        Route::post('/cron-token', [AdminController::class, 'cronToken'])->middleware('throttle:admin');
+    });
 });

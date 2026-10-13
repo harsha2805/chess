@@ -107,7 +107,8 @@ class AuthController extends Controller
         ]);
 
         $status = Password::reset($request->only('email', 'password', 'token'), function (User $user, string $password) {
-            $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
+            // The link reached the inbox, so the address is theirs.
+            $user->forceFill(['password' => $password, 'remember_token' => Str::random(60), 'email_verified_at' => $user->email_verified_at ?? now()])->save();
             // Signed in elsewhere with the old password: those sessions end.
             DB::table('sessions')->where('user_id', $user->id)->delete();
             event(new PasswordReset($user));
@@ -142,6 +143,18 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return response()->noContent();
+    }
+
+    /** Stops signing in with Google. Only for an account with a password, so it cannot lock itself out. */
+    public function disconnectGoogle(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if ($user->password === null) {
+            throw ValidationException::withMessages(['google' => 'Set a password first ("Forgot your password?" on the sign-in page), so you can still sign in.']);
+        }
+        $user->forceFill(['google_id' => null])->save();
+
+        return response()->json(['user' => $user->toApi()]);
     }
 
     private static function donateUrl(): ?string

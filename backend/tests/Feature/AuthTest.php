@@ -104,7 +104,7 @@ class AuthTest extends TestCase
     public function test_reset_password_sets_the_new_password_and_signs_in(): void
     {
         Notification::fake();
-        $user = User::factory()->create(['email' => 'me@example.com']);
+        $user = User::factory()->create(['email' => 'me@example.com', 'email_verified_at' => null]);
         $this->postJson('/api/forgot-password', ['email' => 'me@example.com']);
         $token = null;
         Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $n) use (&$token) {
@@ -121,6 +121,8 @@ class AuthTest extends TestCase
             ->assertJsonPath('user.email', 'me@example.com');
 
         $this->assertTrue(password_verify('a new password', $user->fresh()->password));
+        // The link reached the inbox, so the address now counts as verified.
+        $this->assertNotNull($user->fresh()->email_verified_at);
     }
 
     public function test_deleting_the_account_needs_the_password_and_removes_its_games(): void

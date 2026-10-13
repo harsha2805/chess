@@ -52,6 +52,21 @@ class User extends Authenticatable
         }
     }
 
+    /** Listed in CHESSDEBRIEF_ADMIN_EMAILS, with the address verified (see config/chessdebrief.php). */
+    public function isAdmin(): bool
+    {
+        return $this->email_verified_at !== null
+            && in_array(strtolower($this->email), config('chessdebrief.admin_emails', []), true);
+    }
+
+    /** Notes that the person has shown the address is theirs. */
+    public function markAddressVerified(): void
+    {
+        if ($this->email_verified_at === null) {
+            $this->forceFill(['email_verified_at' => now()])->save();
+        }
+    }
+
     public function toApi(): array
     {
         return [
@@ -60,6 +75,7 @@ class User extends Authenticatable
             // A person who signs in only with Google has no password to confirm things with.
             'hasPassword' => $this->password !== null,
             'google' => $this->google_id !== null,
+            'isAdmin' => $this->isAdmin(),
         ];
     }
 }

@@ -30,15 +30,26 @@ return [
     'donate_url' => env('CHESSDEBRIEF_DONATE_URL', ''),
 
     /*
-    | The maintenance page (public/maintenance.php) runs a fixed set of artisan commands
-    | for hosts without a command line. It stays switched off until this password is set,
-    | and refuses passwords shorter than 16 characters.
+    | Who may open the admin page (#/admin in the app): accounts with one of these email
+    | addresses (comma separated) whose address is verified, by signing in with Google or by a
+    | password reset. Sign-up does not check addresses, so an unverified one never counts.
     */
-    'admin_password' => env('CHESSDEBRIEF_ADMIN_PASSWORD', ''),
+    'admin_emails' => array_values(array_filter(array_map(
+        fn (string $email) => strtolower(trim($email)),
+        explode(',', (string) env('CHESSDEBRIEF_ADMIN_EMAILS', '')),
+    ))),
 
     /*
-    | Web cron: opening maintenance.php?cron=<this token> checks the chess accounts that are
-    | due, for hosts whose cron jobs cannot run PHP. Off while empty; at least 16 characters.
+    | Only for a brand-new server: /setup runs the first migrations with this password (16+
+    | characters), since nobody can sign in before the tables exist. /setup switches itself off
+    | for good once they do.
+    */
+    'setup_password' => env('CHESSDEBRIEF_SETUP_PASSWORD', ''),
+
+    /*
+    | Web cron: opening /cron?token=<token> checks the chess accounts that are due, for hosts
+    | whose cron jobs cannot run PHP. A token made on the admin page is stored hashed in the
+    | database and replaces this one. Off while neither is set; at least 16 characters.
     */
     'cron_token' => env('CHESSDEBRIEF_CRON_TOKEN', ''),
 

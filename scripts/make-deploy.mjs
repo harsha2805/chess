@@ -4,7 +4,7 @@
 //
 // The zip holds two folders, for hosts whose web root is public_html (DirectAdmin, cPanel):
 //   chessdebrief/   the Laravel app, kept out of the web root
-//   public_html/    Laravel's public/ folder: the app's files, index.php, maintenance.php
+//   public_html/    Laravel's public/ folder: the app's files, index.php
 // Extracted in the folder that contains public_html, they land side by side.
 //
 //   node scripts/make-deploy.mjs                  update zip: no .env inside, the server keeps its own
@@ -80,7 +80,7 @@ if (composer.status !== 0) {
 // package:discover may have started a log; the server starts its own.
 rmSync(join(stage, 'storage', 'logs', 'laravel.log'), { force: true });
 
-// The web root is public_html, beside the app. index.php and maintenance.php look for the app there.
+// The web root is public_html, beside the app. index.php looks for the app there.
 renameSync(join(stage, 'public'), web);
 rmSync(join(web, '.app-files'), { force: true }); // copy-to-backend's own list
 // Nothing in the app folder is meant for the web, even if it ends up inside a web root.

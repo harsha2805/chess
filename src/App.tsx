@@ -16,6 +16,7 @@ const SignIn = lazy(() => import('./ui/Account').then((m) => ({ default: m.SignI
 const Forgot = lazy(() => import('./ui/Account').then((m) => ({ default: m.Forgot })));
 const Reset = lazy(() => import('./ui/Account').then((m) => ({ default: m.Reset })));
 const AccountPage = lazy(() => import('./ui/Account').then((m) => ({ default: m.AccountPage })));
+const Admin = lazy(() => import('./ui/Admin').then((m) => ({ default: m.Admin })));
 
 export function App() {
   const route = useRoute();
@@ -51,8 +52,11 @@ export function App() {
   } else if (section === 'reset' && a && b) {
     page = <Reset token={a} email={b} />;
     title = `Set a new password | ${APP_NAME}`;
+  } else if (section === 'admin') {
+    page = <Admin section={a} />;
+    title = `Admin | ${APP_NAME}`;
   } else if (section === 'account') {
-    page = <AccountPage />;
+    page = <AccountPage notice={a} />;
     title = `Your account | ${APP_NAME}`;
   } else {
     page = <Home />;

@@ -2335,6 +2335,237 @@ a.note-eval {
   position: absolute;
   left: -9999px;
 }
+/* ---------- Admin page: a section list beside the panel, tabs on phones ---------- */
+
+.admin {
+  display: grid;
+  gap: 24px;
+}
+.admin-nav {
+  position: relative; /* offsetLeft of the tabs is measured from here */
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 calc(var(--gutter) * -1);
+  padding: 0 var(--gutter) 2px;
+  border-bottom: 1px solid var(--seam);
+}
+.admin-nav::-webkit-scrollbar {
+  display: none;
+}
+.admin-title {
+  display: none;
+}
+.admin-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 10px 14px 8px;
+  border-bottom: 3px solid transparent;
+  color: var(--ink-2);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+.admin-nav a:hover {
+  color: var(--ink);
+}
+.admin-nav a[aria-current='page'] {
+  color: var(--ink);
+  border-bottom-color: var(--m-blunder);
+}
+.admin-badge {
+  min-width: 20px;
+  padding: 1px 6px 0;
+  border-radius: 999px;
+  background: var(--danger);
+  color: var(--sign-ink);
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-align: center;
+}
+.admin-panel {
+  min-width: 0;
+}
+.admin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.admin-head h1 {
+  font-size: clamp(1.6rem, 3vw, 2.25rem);
+  font-weight: 900;
+}
+.admin-intro {
+  margin: 6px 0 18px;
+  color: var(--ink-3);
+  max-width: 68ch;
+}
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.admin-stat {
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--ground-2);
+  box-shadow: inset 0 0 0 1px var(--seam);
+}
+.admin-stat span {
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.admin-stat b {
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+.admin-stat small {
+  color: var(--ink-3);
+}
+.admin-stat.warn {
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+.admin-stat.warn b {
+  color: var(--danger);
+}
+.admin-checks {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.admin-checks th,
+.admin-checks td {
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--seam);
+  text-align: left;
+  vertical-align: top;
+}
+.admin-checks th {
+  width: 36%;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.admin-checks td {
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.admin-checks .ok {
+  color: var(--m-best);
+}
+.admin-checks .bad {
+  color: var(--danger);
+}
+.admin-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.admin-action {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  justify-items: start;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--ground-2);
+  box-shadow: inset 0 0 0 1px var(--seam);
+}
+.admin-action small {
+  color: var(--ink-3);
+  font-size: 0.875rem;
+}
+.admin-cron {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.admin-copy {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.admin-copy code {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--ground-2);
+  box-shadow: inset 0 0 0 1px var(--seam);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+.admin-output {
+  margin-top: 20px;
+}
+.admin-output-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: var(--ink-3);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.admin-output pre {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--ground-2);
+  box-shadow: inset 0 0 0 1px var(--seam);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 480px;
+  overflow: auto;
+}
+@media (min-width: 860px) {
+  .admin {
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+  }
+  .admin-nav {
+    position: sticky;
+    top: calc(var(--bar-h) + 24px);
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    border-bottom: 0;
+    overflow: visible;
+  }
+  .admin-title {
+    display: block;
+    margin: 0 0 8px 14px;
+    color: var(--ink-3);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .admin-nav a {
+    justify-content: space-between;
+    padding: 9px 14px 7px;
+    border-bottom: 0;
+    border-radius: var(--radius);
+  }
+  .admin-nav a:hover {
+    background: var(--ground-2);
+  }
+  .admin-nav a[aria-current='page'] {
+    background: var(--sign);
+    color: var(--sign-ink);
+  }
+}
+
 /* Sign-in with Google, above the email form. */
 .oauth {
   display: grid;
@@ -2802,6 +3033,11 @@ a.note-eval {
     gap: 6px;
     padding: 8px 9px 6px;
     font-size: 0.875rem;
+  }
+  /* Room for the account and theme buttons side by side. */
+  .theme-btn,
+  .account-btn {
+    margin-left: 4px;
   }
   .nav a:not([aria-current='page']) i {
     display: none;

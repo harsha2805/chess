@@ -23,7 +23,7 @@ class GoogleSignInTest extends TestCase
     }
 
     /** Google answers with this person. */
-    private function google(string $id, string $email, bool $verified = true): void
+    private function google(string $id, string $email, mixed $verified = true): void
     {
         $user = (new GoogleUser)->setRaw(['sub' => $id, 'email' => $email, 'email_verified' => $verified])
             ->map(['id' => $id, 'email' => $email, 'name' => 'Some Player']);
@@ -42,7 +42,7 @@ class GoogleSignInTest extends TestCase
 
     public function test_the_redirect_goes_to_google(): void
     {
-        $this->get('/auth/google/redirect')->assertRedirectContains('accounts.google.com');
+        $this->get('/auth/google/redirect')->assertRedirectContains('accounts.google.com')->assertSessionMissing('google_link_user');
     }
 
     public function test_a_new_person_gets_an_account_without_a_password(): void
@@ -62,27 +62,35 @@ class GoogleSignInTest extends TestCase
             ->assertJsonPath('user.google', true);
     }
 
-    public function test_a_verified_address_is_linked_to_the_existing_account(): void
+    public function test_an_existing_account_is_never_joined_to_google_automatically(): void
     {
+        // Possibly made by an impostor with someone else's address: joining it would let them in.
         $existing = User::factory()->create(['email' => 'me@example.com', 'password' => 'my password']);
         $this->google('g-2', 'me@example.com');
 
-        $this->get('/auth/google/callback?code=x')->assertRedirect(GoogleController::app('/'));
+        $this->get('/auth/google/callback?code=x')->assertRedirect(GoogleController::app('/signin/google-exists'));
 
+        $this->assertNull($existing->fresh()->google_id);
         $this->assertSame(1, User::count());
-        $this->assertSame('g-2', $existing->fresh()->google_id);
-        $this->getJson('/api/session')->assertJsonPath('user.hasPassword', true);
+        $this->getJson('/api/session')->assertJsonPath('user', null);
     }
 
-    public function test_an_unverified_address_never_takes_over_an_account(): void
+    public function test_an_unverified_google_address_is_refused(): void
     {
-        $existing = User::factory()->create(['email' => 'me@example.com']);
-        $this->google('g-3', 'me@example.com', verified: false);
+        $this->google('g-3', 'someone@example.com', verified: false);
 
         $this->get('/auth/google/callback?code=x')->assertRedirect(GoogleController::app('/signin/google-unverified'));
 
-        $this->assertNull($existing->fresh()->google_id);
-        $this->getJson('/api/session')->assertJsonPath('user', null);
+        $this->assertSame(0, User::count());
+    }
+
+    public function test_the_verified_flag_is_read_strictly(): void
+    {
+        // A cast to bool would read the string "false" as true.
+        $this->google('g-3b', 'someone@example.com', verified: 'false');
+
+        $this->get('/auth/google/callback?code=x')->assertRedirect(GoogleController::app('/signin/google-unverified'));
+        $this->assertSame(0, User::count());
     }
 
     public function test_signing_in_again_finds_the_account_by_google_id(): void
@@ -107,9 +115,67 @@ class GoogleSignInTest extends TestCase
         $this->get('/auth/google/callback?code=x')->assertRedirect(GoogleController::app('/signin/google-failed'));
     }
 
+    public function test_connect_google_from_the_account_page(): void
+    {
+        $user = User::factory()->create(['email' => 'me@example.com', 'password' => 'my password']);
+
+        // Pressing "Connect Google" while signed in marks the round trip as connecting.
+        $this->actingAs($user)->get('/auth/google/redirect')->assertSessionHas('google_link_user', $user->id);
+
+        // The Google account may use another address: both are proven to be theirs.
+        $this->google('g-5', 'other@gmail.com');
+        $this->actingAs($user)->withSession(['google_link_user' => $user->id])
+            ->get('/auth/google/callback?code=x')
+            ->assertRedirect(GoogleController::app('/account/google-connected'));
+
+        $this->assertSame('g-5', $user->fresh()->google_id);
+        $this->assertSame('me@example.com', $user->fresh()->email);
+    }
+
+    public function test_a_google_account_already_used_elsewhere_is_not_connected(): void
+    {
+        User::factory()->create(['google_id' => 'g-6']);
+        $user = User::factory()->create(['password' => 'my password']);
+        $this->google('g-6', 'shared@gmail.com');
+
+        $this->actingAs($user)->withSession(['google_link_user' => $user->id])
+            ->get('/auth/google/callback?code=x')
+            ->assertRedirect(GoogleController::app('/account/google-taken'));
+
+        $this->assertNull($user->fresh()->google_id);
+    }
+
+    public function test_connecting_needs_the_same_person_still_signed_in(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $this->google('g-7', 'x@gmail.com');
+
+        $this->actingAs($other)->withSession(['google_link_user' => $user->id])
+            ->get('/auth/google/callback?code=x')
+            ->assertRedirect(GoogleController::app('/signin/google-failed'));
+
+        $this->assertNull($user->fresh()->google_id);
+        $this->assertNull($other->fresh()->google_id);
+    }
+
+    public function test_disconnecting_google_with_a_password_to_fall_back_on(): void
+    {
+        $withPassword = User::factory()->create(['google_id' => 'g-8', 'password' => 'my password']);
+        $this->actingAs($withPassword)->deleteJson('/api/user/google')->assertOk()->assertJsonPath('user.google', false);
+        $this->assertNull($withPassword->fresh()->google_id);
+    }
+
+    public function test_disconnecting_google_is_refused_without_a_password(): void
+    {
+        $googleOnly = User::factory()->create(['google_id' => 'g-9', 'password' => null]);
+        $this->actingAs($googleOnly)->deleteJson('/api/user/google')->assertJsonValidationErrors('google');
+        $this->assertSame('g-9', $googleOnly->fresh()->google_id);
+    }
+
     public function test_a_google_only_account_is_told_to_use_google_when_trying_a_password(): void
     {
-        User::factory()->create(['email' => 'g@example.com', 'password' => null, 'google_id' => 'g-5']);
+        User::factory()->create(['email' => 'g@example.com', 'password' => null, 'google_id' => 'g-10']);
 
         $this->postJson('/api/login', ['email' => 'g@example.com', 'password' => 'anything'])
             ->assertUnprocessable()
@@ -118,7 +184,7 @@ class GoogleSignInTest extends TestCase
 
     public function test_a_google_only_account_is_deleted_by_typing_its_address(): void
     {
-        $user = User::factory()->create(['email' => 'g@example.com', 'password' => null, 'google_id' => 'g-6']);
+        $user = User::factory()->create(['email' => 'g@example.com', 'password' => null, 'google_id' => 'g-11']);
 
         $this->actingAs($user)->deleteJson('/api/user', ['confirm' => 'someone@else.com'])->assertJsonValidationErrors('confirm');
         $this->actingAs($user)->deleteJson('/api/user', ['confirm' => ' G@Example.com '])->assertNoContent();

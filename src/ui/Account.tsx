@@ -4,6 +4,7 @@ import {
   GOOGLE_SIGN_IN,
   checkForGames,
   deleteAccount,
+  disconnectGoogle,
   linkAccount,
   register,
   requestPasswordReset,
@@ -25,8 +26,18 @@ const PLATFORM_NAME = { chesscom: 'Chess.com', lichess: 'Lichess' } as const;
 const GOOGLE_PROBLEM: Record<string, string> = {
   'google-cancelled': 'Google sign-in was cancelled. Nothing was changed.',
   'google-failed': 'Google sign-in did not work this time. Try again.',
-  'google-unverified':
-    'An account with that address already exists, and Google has not confirmed the address is yours, so it was not linked. Sign in with your password instead.',
+  'google-unverified': 'Google has not confirmed that email address is yours, so it cannot be used to sign in. Use an email and password instead.',
+  'google-exists':
+    'An account with that email address already exists. Sign in with your password, then press "Connect Google" on the Account page to use Google from then on.',
+};
+
+/** How "Connect Google" on the Account page went (#/account/google-<result>). */
+const GOOGLE_CONNECT: Record<string, { ok: boolean; text: string }> = {
+  'google-connected': { ok: true, text: 'Google is connected. You can sign in with it from now on.' },
+  'google-taken': { ok: false, text: 'That Google account already belongs to another account here, so it was not connected.' },
+  'google-unverified': { ok: false, text: 'Google has not confirmed that Google account\'s email address, so it was not connected.' },
+  'google-cancelled': { ok: false, text: 'Connecting Google was cancelled. Nothing was changed.' },
+  'google-failed': { ok: false, text: 'Connecting Google did not work this time. Try again.' },
 };
 
 /** Google's mark, as its sign-in guidelines ask for on the button. */
@@ -355,7 +366,7 @@ function AccountRow({ account }: { account: ChessAccount }) {
   );
 }
 
-export function AccountPage() {
+export function AccountPage({ notice }: { notice?: string }) {
   const ready = useReady();
   const status = useAccount((s) => s.status);
   const user = useAccount((s) => s.user);
@@ -370,6 +381,8 @@ export function AccountPage() {
   const [password, setPassword] = useState('');
   const [linkError, setLinkError] = useState('');
   const del = useForm();
+  const googleOn = useAccount((s) => s.providers.google);
+  const unlink = useForm();
 
   if (ready === 'wait') return <p className="muted">Checking your account…</p>;
   if (ready === 'unavailable') return <Unavailable />;
@@ -393,6 +406,11 @@ export function AccountPage() {
       {syncError && (
         <p className="notice error" role="alert">
           {syncError}
+        </p>
+      )}
+      {user.isAdmin && (
+        <p>
+          <a href={href('admin')}>Open the admin page</a>
         </p>
       )}
 
@@ -438,6 +456,46 @@ export function AccountPage() {
             </span>
           )}
         </div>
+      )}
+
+      {googleOn && (
+        <>
+          <h2>Google</h2>
+          {notice && GOOGLE_CONNECT[notice] && (
+            <p className={GOOGLE_CONNECT[notice].ok ? 'notice' : 'notice error'} role={GOOGLE_CONNECT[notice].ok ? 'status' : 'alert'}>
+              {GOOGLE_CONNECT[notice].text}
+            </p>
+          )}
+          {!user.google ? (
+            <>
+              <p>Connect your Google account to sign in with it as well as your password.</p>
+              <div className="form-actions">
+                <a className="btn quiet google-btn" href={GOOGLE_SIGN_IN}>
+                  <GoogleMark />
+                  Connect Google
+                </a>
+              </div>
+            </>
+          ) : user.hasPassword ? (
+            <>
+              <p>You can sign in with Google or with your password.</p>
+              <div className="form-actions">
+                <button className="btn quiet" type="button" disabled={unlink.busy} onClick={() => void unlink.run(disconnectGoogle)}>
+                  {unlink.busy ? 'Disconnecting…' : 'Disconnect Google'}
+                </button>
+              </div>
+              {(unlink.error || unlink.fields.google) && (
+                <p className="notice error" role="alert">
+                  {unlink.fields.google ?? unlink.error}
+                </p>
+              )}
+            </>
+          ) : (
+            <p>
+              You sign in with Google. To be able to disconnect it, first set a password with "Forgot your password?" on the sign-in page.
+            </p>
+          )}
+        </>
       )}
 
       <h2>Sign out</h2>

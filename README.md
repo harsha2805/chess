@@ -94,7 +94,7 @@ Off until `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in `backend/.env
    "Web application". Under **Authorized redirect URIs** add
    `https://your.domain/auth/google/callback` (and `http://localhost:5173/auth/google/callback`
    for development). No JavaScript origins are needed.
-4. Put the client ID and secret in `.env`, then press **Clear caches** on the maintenance page.
+4. Put the client ID and secret in `.env`, then press **Clear caches** on the admin page (`#/admin`).
 
 A Google address that already has an account is linked to it only when Google says the
 address is verified. People who sign in only with Google have no password; they confirm
@@ -120,22 +120,27 @@ No command line is needed on the server.
    public files). Upload it to the folder that contains the site's `public_html`
    (DirectAdmin: `domains/<site>/`), empty `public_html` first, and extract there. The
    app then sits beside the web root, where nothing in it can be opened from the web;
-   `index.php` and `maintenance.php` find it there. (With a document root you can point
+   `index.php` finds it there. (With a document root you can point
    anywhere, the usual Laravel layout works too: the app with `public/` inside it.)
-3. Edit `chessdebrief/.env`: `APP_URL`, the MySQL details and `MAIL_PASSWORD`.
-4. Open `https://your.domain/maintenance.php`, sign in with `CHESSDEBRIEF_ADMIN_PASSWORD`,
-   then press **Run migrations** and **Cache config and routes**. After later uploads, run
-   migrations again; after editing `.env`, press **Clear caches**.
-5. Scheduled fetch, either one:
+3. Edit `chessdebrief/.env`: `APP_URL`, the MySQL details, `MAIL_PASSWORD`, and your
+   address in `CHESSDEBRIEF_ADMIN_EMAILS`.
+4. First deploy only: set `CHESSDEBRIEF_SETUP_PASSWORD` (16+ characters), open
+   `https://your.domain/setup` and create the tables. The page then switches itself off.
+5. Sign in to the site with Google using that address (or verify it once with
+   "Forgot your password?"), then open **Account > Open the admin page** (`#/admin`).
+   After every later upload: **Update > Run migrations**, then **Clear caches**, then
+   **Cache config and routes**. After editing `.env`, press **Clear caches**.
+6. Scheduled fetch, either one:
    - a cron job that can run PHP: `* * * * * cd ~/domains/<site>/chessdebrief && php artisan schedule:run >> /dev/null 2>&1`
-   - or, every 15 minutes, open the web cron address shown on the maintenance page
-     (`maintenance.php?cron=<CHESSDEBRIEF_CRON_TOKEN>`), with a cron job running
-     `wget -q -O /dev/null "<address>"` or a service such as cron-job.org.
-6. `storage/` and `bootstrap/cache/` must be writable by PHP (the maintenance page checks).
+   - or a cron job opening the web cron address every 15 minutes (minutes `0,15,30,45`).
+     Make the address under **Admin > Cron**, which also gives the full
+     `wget -q -O /dev/null "https://your.domain/cron?token=…"` command.
+7. `storage/` and `bootstrap/cache/` must be writable by PHP (the admin page checks).
 
-The maintenance page runs only a fixed list of commands (migrations, caches, the game
-fetch, a test email, the error log) and is off while `CHESSDEBRIEF_ADMIN_PASSWORD` is
-empty. Five wrong passwords lock it for 15 minutes.
+The admin page runs only a fixed list of commands (migrations, caches, the game fetch, a
+test email, the error log). It is open to accounts listed in `CHESSDEBRIEF_ADMIN_EMAILS`
+whose address is verified: sign-up does not check addresses, so an unverified account with
+your address never counts. The cron token is stored hashed and shown only once.
 
 `backend/public/.htaccess` sets the WebAssembly MIME type, compression and caching, and
 serves `index.html` for `/`. The single-threaded engine is used on purpose: it needs no

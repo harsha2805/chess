@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -25,6 +26,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // The admin page (see User::isAdmin) and how often it may run commands.
+        Gate::define('admin', fn (User $user) => $user->isAdmin());
+        RateLimiter::for('admin', fn (Request $request) => Limit::perMinute(20)->by('admin|'.$request->user()?->id));
+        // Web cron: called every 15 minutes; anything much more often is not the cron job.
+        RateLimiter::for('cron', fn (Request $request) => Limit::perMinute(6)->by('cron|'.$request->ip()));
+
         // Sign-in attempts: per address and per visitor, so guessing passwords is slow.
         RateLimiter::for('auth', fn (Request $request) => [
             Limit::perMinute(20)->by('ip|'.$request->ip()),
